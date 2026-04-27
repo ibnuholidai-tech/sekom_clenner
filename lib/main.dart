@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
-import 'screens/main_screen.dart';
+import 'screens/modern_main_screen.dart';
 import 'services/system_service.dart';
 import 'config/build_flags.dart';
 import 'utils/error_handler.dart';
 import 'config/service_locator.dart';
 import 'config/sentry_config.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   runZonedGuarded(() async {
@@ -68,66 +69,8 @@ class SekomCleanerApp extends StatelessWidget {
       navigatorKey: GlobalErrorHandler.navigatorKey,
       title: 'Sekom Cleaner',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        // Reduce overall font size and padding to make UI more compact
-        textTheme: TextTheme(
-          bodyLarge: TextStyle(fontSize: 14),
-          bodyMedium: TextStyle(fontSize: 13),
-          bodySmall: TextStyle(fontSize: 12),
-          titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-        ),
-        appBarTheme: AppBarTheme(
-          centerTitle: true,
-          elevation: 2,
-          shadowColor: Colors.black26,
-          toolbarHeight: 48, // Reduce app bar height
-        ),
-        tabBarTheme: TabBarThemeData(
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          indicatorSize: TabBarIndicatorSize.tab,
-          labelStyle: TextStyle(fontSize: 13), // Smaller tab text
-          unselectedLabelStyle: TextStyle(fontSize: 13),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 3,
-          shadowColor: Colors.black26,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          margin: EdgeInsets.all(4), // Reduce card margins
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8), // Smaller buttons
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
-            ),
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            textStyle: TextStyle(fontSize: 13), // Smaller button text
-          ),
-        ),
-        checkboxTheme: CheckboxThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(3),
-          ),
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        iconTheme: IconThemeData(
-          size: 20, // Smaller icons
-        ),
-        visualDensity: VisualDensity.compact, // Make everything more compact
-      ),
-      home: const MainScreen(),
+      theme: AppTheme.buildLightTheme(),
+      home: const ModernMainScreen(),
     );
   }
 }
