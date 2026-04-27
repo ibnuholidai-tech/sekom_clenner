@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_colors.dart';
+
 /// Design tokens for the modern Sekom Cleaner UI.
 ///
 /// Inspired by a soft, glassmorphic-light look:
@@ -62,40 +64,47 @@ class AppTheme {
     ),
   ];
 
-  static ThemeData buildLightTheme() {
+  static ThemeData buildLightTheme() => _build(Brightness.light);
+  static ThemeData buildDarkTheme() => _build(Brightness.dark);
+
+  static ThemeData _build(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final palette = isDark ? AppColors.dark : AppColors.light;
     final base = ThemeData(
       useMaterial3: true,
+      brightness: brightness,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primary,
-        brightness: Brightness.light,
+        brightness: brightness,
         primary: primary,
-        surface: cardBackground,
+        surface: palette.cardBackground,
       ),
-      scaffoldBackgroundColor: pageBackground,
+      scaffoldBackgroundColor: palette.pageBackground,
       visualDensity: VisualDensity.standard,
+      extensions: <ThemeExtension<dynamic>>[palette],
     );
 
     return base.copyWith(
       textTheme: base.textTheme
           .copyWith(
-            titleLarge: const TextStyle(
+            titleLarge: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: textPrimary,
+              color: palette.textPrimary,
             ),
-            titleMedium: const TextStyle(
+            titleMedium: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: textPrimary,
+              color: palette.textPrimary,
             ),
-            titleSmall: const TextStyle(
+            titleSmall: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: textPrimary,
+              color: palette.textPrimary,
             ),
-            bodyLarge: const TextStyle(fontSize: 14, color: textPrimary),
-            bodyMedium: const TextStyle(fontSize: 13, color: textPrimary),
-            bodySmall: const TextStyle(fontSize: 12, color: textSecondary),
+            bodyLarge: TextStyle(fontSize: 14, color: palette.textPrimary),
+            bodyMedium: TextStyle(fontSize: 13, color: palette.textPrimary),
+            bodySmall: TextStyle(fontSize: 12, color: palette.textSecondary),
             labelLarge: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -104,11 +113,11 @@ class AppTheme {
           .apply(fontFamily: base.textTheme.bodyMedium?.fontFamily),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: cardBackground,
+        color: palette.cardBackground,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: cardShape,
-          side: const BorderSide(color: cardBorder),
+          side: BorderSide(color: palette.cardBorder),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -117,28 +126,26 @@ class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          textStyle: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: primary,
-          side: const BorderSide(color: cardBorder),
+          side: BorderSide(color: palette.cardBorder),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          textStyle: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
+          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         ),
       ),
-      iconTheme: const IconThemeData(size: 20, color: textPrimary),
-      dividerTheme: const DividerThemeData(
-        color: cardBorder,
+      iconTheme: IconThemeData(size: 20, color: palette.textPrimary),
+      dividerTheme: DividerThemeData(
+        color: palette.cardBorder,
         thickness: 1,
         space: 1,
       ),

@@ -16,6 +16,7 @@ class SystemTrayService {
     required String iconPath,
     required VoidCallback onShow,
     required VoidCallback onExit,
+    VoidCallback? onQuickClean,
   }) async {
     if (_isInitialized) return;
 
@@ -24,14 +25,20 @@ class SystemTrayService {
       await _systemTray.initSystemTray(title: appName, iconPath: iconPath);
 
       // Create menu
-      await _menu.buildFrom([
+      final entries = <MenuItemBase>[
         MenuItemLabel(
-          label: 'Show $appName',
+          label: 'Buka $appName',
           onClicked: (menuItem) => onShow(),
         ),
+        if (onQuickClean != null)
+          MenuItemLabel(
+            label: 'Quick Clean (preset tersimpan)',
+            onClicked: (menuItem) => onQuickClean(),
+          ),
         MenuSeparator(),
-        MenuItemLabel(label: 'Exit', onClicked: (menuItem) => onExit()),
-      ]);
+        MenuItemLabel(label: 'Keluar', onClicked: (menuItem) => onExit()),
+      ];
+      await _menu.buildFrom(entries);
 
       // Set menu
       await _systemTray.setContextMenu(_menu);

@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/system_status.dart';
+import '../../services/cleaning_history_service.dart';
 import '../../services/system_service.dart';
+import '../../state/cleaning_history_provider.dart';
+import '../../state/cleaning_preset_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/error_handler.dart';
+import '../../widgets/modern/cleaning_history_dialog.dart';
 import '../../widgets/modern/modern_card.dart';
 import '../../widgets/modern/modern_pill.dart';
 import '../state/status_message_provider.dart';
@@ -65,7 +69,36 @@ class _ModernSystemCleanerScreenState
   @override
   void initState() {
     super.initState();
-    Future.microtask(_initialScan);
+    Future.microtask(() async {
+      _applyCurrentPresetIfNotCustom();
+      await _initialScan();
+    });
+  }
+
+  void _applyCurrentPresetIfNotCustom() {
+    final preset = ref.read(cleaningPresetProvider);
+    if (preset == CleaningPreset.custom) return;
+    _applyPreset(preset, persist: false);
+  }
+
+  void _applyPreset(CleaningPreset preset, {bool persist = true}) {
+    final selection = CleaningSelection.forPreset(preset);
+    setState(() {
+      _chromeSelected = selection.chrome;
+      _edgeSelected = selection.edge;
+      _firefoxSelected = selection.firefox;
+      _braveSelected = selection.brave;
+      _resetBrowserSelected = selection.resetBrowser;
+      for (final key in _folderSelected.keys) {
+        _folderSelected[key] = selection.folders[key] ?? false;
+      }
+      _clearRecentSelected = selection.clearRecent;
+      _clearRecycleBinSelected = selection.clearRecycleBin;
+    });
+    if (persist) {
+      ref.read(cleaningPresetProvider.notifier).set(preset);
+    }
+    _setStatus('Preset diterapkan: ${preset.label}.');
   }
 
   Future<void> _initialScan() async {
@@ -94,9 +127,7 @@ class _ModernSystemCleanerScreenState
         SystemService.getFolderSizesUltraFast(
           timeout: const Duration(seconds: 6),
         ).catchError((_) => <FolderInfo>[]),
-        SystemService.getRamInfo().catchError(
-          (_) => <String, dynamic>{},
-        ),
+        SystemService.getRamInfo().catchError((_) => <String, dynamic>{}),
         SystemService.getPhysicalDiskInfo().catchError(
           (_) => <Map<String, dynamic>>[],
         ),
@@ -136,10 +167,8 @@ class _ModernSystemCleanerScreenState
   }
 
   Future<void> _startCleaning() async {
-    final anyBrowser = _chromeSelected ||
-        _edgeSelected ||
-        _firefoxSelected ||
-        _braveSelected;
+    final anyBrowser =
+        _chromeSelected || _edgeSelected || _firefoxSelected || _braveSelected;
     final anyFolder = _folderSelected.values.any((e) => e);
     if (!anyBrowser &&
         !anyFolder &&
@@ -158,9 +187,13 @@ class _ModernSystemCleanerScreenState
     setState(() => _isCleaning = true);
     _setStatus('Membersihkan...');
 
+    final start = DateTime.now();
+    final actions = <String>[];
+    final detectedSize = _selectedFolderTotalBytes();
     try {
       final tasks = <Future<dynamic>>[];
       if (anyBrowser) {
+        actions.add('Browser');
         tasks.add(
           SystemService.cleanBrowsers(
             chrome: _chromeSelected,
@@ -171,6 +204,7 @@ class _ModernSystemCleanerScreenState
         );
       }
       if (anyFolder) {
+        actions.add('Folder pengguna');
         tasks.add(
           SystemService.cleanSystemFolders(
             documents: _folderSelected['Documents'] ?? false,
@@ -182,11 +216,28 @@ class _ModernSystemCleanerScreenState
           ),
         );
       }
-      if (_clearRecentSelected) tasks.add(SystemService.clearRecentFiles());
-      if (_clearRecycleBinSelected) tasks.add(SystemService.clearRecycleBin());
+      if (_clearRecentSelected) {
+        actions.add('Recent');
+        tasks.add(SystemService.clearRecentFiles());
+      }
+      if (_clearRecycleBinSelected) {
+        actions.add('Recycle Bin');
+        tasks.add(SystemService.clearRecycleBin());
+      }
 
       await Future.wait(tasks);
       _setStatus('Pembersihan selesai.');
+      await ref
+          .read(cleaningHistoryProvider.notifier)
+          .append(
+            CleaningRecord(
+              timestamp: start,
+              duration: DateTime.now().difference(start),
+              detectedSizeBytes: detectedSize,
+              items: actions,
+              preset: ref.read(cleaningPresetProvider).name,
+            ),
+          );
       if (!mounted) return;
       _showInfo('Pembersihan selesai.');
       // Refresh folder sizes after cleaning
@@ -197,6 +248,12 @@ class _ModernSystemCleanerScreenState
     } finally {
       if (mounted) setState(() => _isCleaning = false);
     }
+  }
+
+  int _selectedFolderTotalBytes() {
+    return _folderInfos
+        .where((f) => _folderSelected[f.name] ?? false)
+        .fold<int>(0, (sum, f) => sum + f.sizeBytes);
   }
 
   // ---- Helpers ----
@@ -253,9 +310,7 @@ class _ModernSystemCleanerScreenState
 
   // ---- Open generic test screens ----
   void _openTest(Widget child) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => child),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => child));
   }
 
   @override
@@ -332,10 +387,7 @@ class _ModernSystemCleanerScreenState
                 SizedBox(height: 2),
                 Text(
                   'Bersihkan, periksa, dan optimalkan PC Anda',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                  ),
+                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                 ),
               ],
             ),
@@ -343,6 +395,11 @@ class _ModernSystemCleanerScreenState
           Wrap(
             spacing: 8,
             children: [
+              _smallButton(
+                icon: Icons.history,
+                label: 'Riwayat',
+                onTap: () => CleaningHistoryDialog.show(context),
+              ),
               _smallButton(
                 icon: Icons.refresh,
                 label: _isChecking ? 'Memeriksa...' : 'Scan Ulang',
@@ -358,6 +415,64 @@ class _ModernSystemCleanerScreenState
                 label: _isCleaning ? 'Membersihkan...' : 'Bersihkan',
                 onTap: _isCleaning ? null : _startCleaning,
               ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPresetCard() {
+    final current = ref.watch(cleaningPresetProvider);
+    Widget pill(CleaningPreset preset) {
+      final selected = current == preset;
+      final tint = switch (preset) {
+        CleaningPreset.light => AppTheme.pillBlue,
+        CleaningPreset.standard => AppTheme.pillGreen,
+        CleaningPreset.deep => AppTheme.pillPurple,
+        CleaningPreset.custom => AppTheme.pillAmber,
+      };
+      final tintText = switch (preset) {
+        CleaningPreset.light => AppTheme.pillBlueText,
+        CleaningPreset.standard => AppTheme.pillGreenText,
+        CleaningPreset.deep => AppTheme.pillPurpleText,
+        CleaningPreset.custom => AppTheme.pillAmberText,
+      };
+      final icon = switch (preset) {
+        CleaningPreset.light => Icons.cleaning_services_outlined,
+        CleaningPreset.standard => Icons.cleaning_services,
+        CleaningPreset.deep => Icons.delete_forever,
+        CleaningPreset.custom => Icons.tune_rounded,
+      };
+      return ModernSelectablePill(
+        icon: icon,
+        label: '${preset.label} • ${preset.description}',
+        tint: tint,
+        tintText: tintText,
+        selected: selected,
+        onTap: () => _applyPreset(preset),
+      );
+    }
+
+    return ModernCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const ModernSectionHeader(
+            icon: Icons.tune_rounded,
+            title: 'Preset Pembersihan',
+            subtitle:
+                'Klik untuk memuat pilihan default sesuai tingkat pembersihan',
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              pill(CleaningPreset.light),
+              pill(CleaningPreset.standard),
+              pill(CleaningPreset.deep),
+              pill(CleaningPreset.custom),
             ],
           ),
         ],
@@ -394,6 +509,8 @@ class _ModernSystemCleanerScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _buildPresetCard(),
+        const SizedBox(height: 14),
         _buildCleaningOptionsCard(),
         const SizedBox(height: 14),
         _buildBrowserCard(),
@@ -448,8 +565,7 @@ class _ModernSystemCleanerScreenState
                 tint: AppTheme.pillBlue,
                 tintText: AppTheme.pillBlueText,
                 selected: _chromeSelected,
-                onTap: () =>
-                    setState(() => _chromeSelected = !_chromeSelected),
+                onTap: () => setState(() => _chromeSelected = !_chromeSelected),
               ),
               ModernSelectablePill(
                 icon: Icons.web,
@@ -528,16 +644,17 @@ class _ModernSystemCleanerScreenState
             children: [
               for (var i = 0; i < _folderSelected.length; i++)
                 ModernSelectablePill(
-                  icon: folderIcons[_folderSelected.keys.elementAt(i)] ??
+                  icon:
+                      folderIcons[_folderSelected.keys.elementAt(i)] ??
                       Icons.folder,
                   label: _folderSelected.keys.elementAt(i),
-                  trailingText: infoMap[_folderSelected.keys.elementAt(i)]
-                      ?.size,
+                  trailingText:
+                      infoMap[_folderSelected.keys.elementAt(i)]?.size,
                   tint: tints[i % tints.length][0],
                   tintText: tints[i % tints.length][1],
                   selected:
                       _folderSelected[_folderSelected.keys.elementAt(i)] ??
-                          false,
+                      false,
                   onTap: () => setState(() {
                     final k = _folderSelected.keys.elementAt(i);
                     _folderSelected[k] = !(_folderSelected[k] ?? false);
@@ -590,15 +707,17 @@ class _ModernSystemCleanerScreenState
   Widget _diskTile(Map<String, dynamic> disk) {
     final name = (disk['model'] ?? disk['friendlyName'] ?? 'Disk').toString();
     final type = (disk['mediaType'] ?? disk['type'] ?? '').toString();
-    final size = (disk['sizeFormatted'] ??
-            disk['size']?.toString() ??
-            disk['capacity']?.toString() ??
-            '')
-        .toString();
+    final size =
+        (disk['sizeFormatted'] ??
+                disk['size']?.toString() ??
+                disk['capacity']?.toString() ??
+                '')
+            .toString();
     final health = (disk['healthStatus'] ?? '').toString();
     final temp = (disk['temperature'] ?? '').toString();
     final isSsd = type.toLowerCase().contains('ssd');
-    final ok = health.toLowerCase().contains('ok') ||
+    final ok =
+        health.toLowerCase().contains('ok') ||
         health.toLowerCase().contains('healthy') ||
         health.isEmpty;
     return Container(
@@ -641,10 +760,7 @@ class _ModernSystemCleanerScreenState
           const SizedBox(height: 6),
           Text(
             'Tipe: ${type.isEmpty ? "-" : type} • $size',
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppTheme.textSecondary,
-            ),
+            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
           ),
           if (temp.isNotEmpty)
             Text(
@@ -660,7 +776,8 @@ class _ModernSystemCleanerScreenState
   }
 
   Widget _ramTile(String ramTotal) {
-    final ramGb = ((_ramInfo['totalMemoryBytes'] as num?)?.toDouble() ?? 0) /
+    final ramGb =
+        ((_ramInfo['totalMemoryBytes'] as num?)?.toDouble() ?? 0) /
         (1024 * 1024 * 1024);
     final warn = ramGb < 8;
     return Container(
@@ -702,10 +819,7 @@ class _ModernSystemCleanerScreenState
           ),
           Text(
             warn ? 'RAM rendah, pertimbangkan upgrade' : 'Kapasitas memadai',
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppTheme.textSecondary,
-            ),
+            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
           ),
         ],
       ),
@@ -778,8 +892,9 @@ class _ModernSystemCleanerScreenState
             ModernBadge(
               text: isActive ? 'Aktif' : 'Periksa',
               background: isActive ? AppTheme.pillGreen : AppTheme.pillAmber,
-              foreground:
-                  isActive ? AppTheme.pillGreenText : AppTheme.pillAmberText,
+              foreground: isActive
+                  ? AppTheme.pillGreenText
+                  : AppTheme.pillAmberText,
             ),
             if (action != null) ...[const SizedBox(width: 6), action],
           ],
@@ -827,7 +942,9 @@ class _ModernSystemCleanerScreenState
               onPressed: () async {
                 final ok = await SystemService.openActivationPowerShell();
                 _setStatus(
-                  ok ? 'PowerShell Aktivasi dibuka' : 'Gagal membuka PowerShell',
+                  ok
+                      ? 'PowerShell Aktivasi dibuka'
+                      : 'Gagal membuka PowerShell',
                 );
               },
               child: const Text('Aktivasi', style: TextStyle(fontSize: 11)),
@@ -844,7 +961,9 @@ class _ModernSystemCleanerScreenState
               onPressed: () async {
                 final ok = await SystemService.openActivationPowerShell();
                 _setStatus(
-                  ok ? 'PowerShell Aktivasi dibuka' : 'Gagal membuka PowerShell',
+                  ok
+                      ? 'PowerShell Aktivasi dibuka'
+                      : 'Gagal membuka PowerShell',
                 );
               },
               child: const Text('Aktivasi', style: TextStyle(fontSize: 11)),
