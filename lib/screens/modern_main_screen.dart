@@ -32,48 +32,13 @@ class _ModernMainScreenState extends ConsumerState<ModernMainScreen> {
   bool _railExpanded = true;
 
   static const List<_NavItem> _items = [
-    _NavItem(
-      icon: Icons.cleaning_services_outlined,
-      label: 'System Cleaner',
-      tint: Color(0xFFE6EFFC),
-      activeTint: AppTheme.primary,
-    ),
-    _NavItem(
-      icon: Icons.delete_sweep_outlined,
-      label: 'Shortcut',
-      tint: Color(0xFFFCE7EE),
-      activeTint: Color(0xFFB8336A),
-    ),
-    _NavItem(
-      icon: Icons.battery_charging_full_outlined,
-      label: 'Battery Health',
-      tint: Color(0xFFE3F4E5),
-      activeTint: Color(0xFF1B7A3B),
-    ),
-    _NavItem(
-      icon: Icons.auto_awesome_outlined,
-      label: 'Optimization',
-      tint: Color(0xFFEFE9FB),
-      activeTint: Color(0xFF6D49C1),
-    ),
-    _NavItem(
-      icon: Icons.info_outline,
-      label: 'Info System',
-      tint: Color(0xFFE0F4F1),
-      activeTint: Color(0xFF0E7C6C),
-    ),
-    _NavItem(
-      icon: Icons.science_outlined,
-      label: 'Testing',
-      tint: Color(0xFFFCEFD9),
-      activeTint: Color(0xFFB7791F),
-    ),
-    _NavItem(
-      icon: Icons.refresh,
-      label: 'Reset',
-      tint: Color(0xFFFCE6E6),
-      activeTint: Color(0xFFB91C1C),
-    ),
+    _NavItem(icon: Icons.cleaning_services_outlined, label: 'System Cleaner'),
+    _NavItem(icon: Icons.delete_sweep_outlined, label: 'Shortcut'),
+    _NavItem(icon: Icons.battery_charging_full_outlined, label: 'Battery Health'),
+    _NavItem(icon: Icons.auto_awesome_outlined, label: 'Optimization'),
+    _NavItem(icon: Icons.info_outline, label: 'Info System'),
+    _NavItem(icon: Icons.science_outlined, label: 'Testing'),
+    _NavItem(icon: Icons.refresh, label: 'Reset'),
   ];
 
   Widget _buildBody() {
@@ -136,14 +101,10 @@ class _ModernMainScreenState extends ConsumerState<ModernMainScreen> {
 class _NavItem {
   final IconData icon;
   final String label;
-  final Color tint;
-  final Color activeTint;
 
   const _NavItem({
     required this.icon,
     required this.label,
-    required this.tint,
-    required this.activeTint,
   });
 }
 
@@ -257,11 +218,7 @@ class _SidebarHeader extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.primary, AppTheme.accent],
-              ),
+              color: AppTheme.primary,
               borderRadius: BorderRadius.circular(10),
             ),
             alignment: Alignment.center,
@@ -338,9 +295,18 @@ class _SidebarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appColors;
-    final bg = selected ? item.activeTint : Colors.transparent;
-    final iconColor = selected ? Colors.white : item.activeTint;
-    final fg = selected ? Colors.white : palette.textPrimary;
+    final bg = selected
+        ? AppTheme.primary.withValues(alpha: 0.10)
+        : Colors.transparent;
+    final iconBubbleBg = selected
+        ? AppTheme.primary.withValues(alpha: 0.18)
+        : palette.surfaceMuted;
+    final iconColor =
+        selected ? AppTheme.primary : palette.textSecondary;
+    final fg = selected ? AppTheme.primaryDark : palette.textPrimary;
+    final borderColor = selected
+        ? AppTheme.primary.withValues(alpha: 0.30)
+        : Colors.transparent;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -356,6 +322,7 @@ class _SidebarItem extends StatelessWidget {
               decoration: BoxDecoration(
                 color: bg,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor),
               ),
               child: Row(
                 mainAxisAlignment: expanded
@@ -366,9 +333,7 @@ class _SidebarItem extends StatelessWidget {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: selected
-                          ? Colors.white.withValues(alpha: 0.18)
-                          : item.tint,
+                      color: iconBubbleBg,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     alignment: Alignment.center,

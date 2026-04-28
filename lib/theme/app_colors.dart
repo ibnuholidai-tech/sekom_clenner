@@ -12,6 +12,12 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color sidebar;
   final Color cardBackground;
   final Color cardBorder;
+
+  /// Subtle filled surface used for inactive pills, chips, and tonal
+  /// containers (one step darker than [cardBackground]).
+  final Color surfaceMuted;
+  final Color surfaceMutedBorder;
+
   final Color textPrimary;
   final Color textSecondary;
   final Color textMuted;
@@ -21,26 +27,32 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.sidebar,
     required this.cardBackground,
     required this.cardBorder,
+    required this.surfaceMuted,
+    required this.surfaceMutedBorder,
     required this.textPrimary,
     required this.textSecondary,
     required this.textMuted,
   });
 
   static const AppColors light = AppColors(
-    pageBackground: Color(0xFFEAF1FB),
-    sidebar: Color(0xFFEFF5FC),
-    cardBackground: Colors.white,
-    cardBorder: Color(0xFFE3ECF6),
+    pageBackground: Color(0xFFF7F8FA),
+    sidebar: Color(0xFFFFFFFF),
+    cardBackground: Color(0xFFFFFFFF),
+    cardBorder: Color(0xFFE5E7EB),
+    surfaceMuted: Color(0xFFF3F4F6),
+    surfaceMutedBorder: Color(0xFFE5E7EB),
     textPrimary: Color(0xFF0F172A),
     textSecondary: Color(0xFF6B7280),
-    textMuted: Color(0xFF94A3B8),
+    textMuted: Color(0xFF9CA3AF),
   );
 
   static const AppColors dark = AppColors(
     pageBackground: Color(0xFF0B1220),
     sidebar: Color(0xFF111827),
-    cardBackground: Color(0xFF1A2434),
-    cardBorder: Color(0xFF253142),
+    cardBackground: Color(0xFF161E2D),
+    cardBorder: Color(0xFF243042),
+    surfaceMuted: Color(0xFF1E2738),
+    surfaceMutedBorder: Color(0xFF2A3548),
     textPrimary: Color(0xFFE5E7EB),
     textSecondary: Color(0xFF9CA3AF),
     textMuted: Color(0xFF6B7280),
@@ -52,6 +64,8 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? sidebar,
     Color? cardBackground,
     Color? cardBorder,
+    Color? surfaceMuted,
+    Color? surfaceMutedBorder,
     Color? textPrimary,
     Color? textSecondary,
     Color? textMuted,
@@ -61,6 +75,8 @@ class AppColors extends ThemeExtension<AppColors> {
       sidebar: sidebar ?? this.sidebar,
       cardBackground: cardBackground ?? this.cardBackground,
       cardBorder: cardBorder ?? this.cardBorder,
+      surfaceMuted: surfaceMuted ?? this.surfaceMuted,
+      surfaceMutedBorder: surfaceMutedBorder ?? this.surfaceMutedBorder,
       textPrimary: textPrimary ?? this.textPrimary,
       textSecondary: textSecondary ?? this.textSecondary,
       textMuted: textMuted ?? this.textMuted,
@@ -75,6 +91,9 @@ class AppColors extends ThemeExtension<AppColors> {
       sidebar: Color.lerp(sidebar, other.sidebar, t)!,
       cardBackground: Color.lerp(cardBackground, other.cardBackground, t)!,
       cardBorder: Color.lerp(cardBorder, other.cardBorder, t)!,
+      surfaceMuted: Color.lerp(surfaceMuted, other.surfaceMuted, t)!,
+      surfaceMutedBorder:
+          Color.lerp(surfaceMutedBorder, other.surfaceMutedBorder, t)!,
       textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
       textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
       textMuted: Color.lerp(textMuted, other.textMuted, t)!,

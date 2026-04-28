@@ -39,31 +39,28 @@ class _UpdateBannerViewState extends State<_UpdateBannerView> {
   @override
   Widget build(BuildContext context) {
     if (_dismissed) return const SizedBox.shrink();
+    final amberFg = AppTheme.pillAmberText;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
-        color: AppTheme.pillAmber,
+      decoration: BoxDecoration(
+        color: AppTheme.warning.withValues(alpha: 0.16),
         border: Border(
-          top: BorderSide(color: AppTheme.cardBorder),
-          bottom: BorderSide(color: AppTheme.cardBorder),
+          top: BorderSide(color: AppTheme.warning.withValues(alpha: 0.35)),
+          bottom: BorderSide(color: AppTheme.warning.withValues(alpha: 0.35)),
         ),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.system_update_alt,
-            size: 18,
-            color: AppTheme.pillAmberText,
-          ),
+          Icon(Icons.system_update_alt, size: 18, color: amberFg),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Versi baru tersedia: ${widget.info.latestVersion} '
               '(saat ini ${widget.info.currentVersion})',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.pillAmberText,
+                color: amberFg,
                 fontWeight: FontWeight.w600,
               ),
               maxLines: 1,
@@ -75,7 +72,7 @@ class _UpdateBannerViewState extends State<_UpdateBannerView> {
             icon: const Icon(Icons.open_in_new, size: 14),
             label: const Text('Buka', style: TextStyle(fontSize: 12)),
             style: TextButton.styleFrom(
-              foregroundColor: AppTheme.pillAmberText,
+              foregroundColor: amberFg,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               minimumSize: const Size(0, 28),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -84,7 +81,7 @@ class _UpdateBannerViewState extends State<_UpdateBannerView> {
           IconButton(
             tooltip: 'Tutup',
             icon: const Icon(Icons.close, size: 14),
-            color: AppTheme.pillAmberText,
+            color: amberFg,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             onPressed: () => setState(() => _dismissed = true),

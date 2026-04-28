@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../services/cleaning_history_service.dart';
 import '../../state/cleaning_history_provider.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 
 class CleaningHistoryDialog extends ConsumerWidget {
@@ -49,9 +50,9 @@ class CleaningHistoryDialog extends ConsumerWidget {
                   ),
                   Text(
                     '${records.length} entri',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: AppTheme.textSecondary,
+                      color: context.appColors.textSecondary,
                     ),
                   ),
                 ],
@@ -159,6 +160,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appColors;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -167,24 +169,29 @@ class _EmptyState extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: AppTheme.pillBlue,
+              color: palette.surfaceMuted,
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: palette.surfaceMutedBorder),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.cleaning_services_outlined,
               size: 28,
-              color: AppTheme.pillBlueText,
+              color: palette.textSecondary,
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Belum ada riwayat',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Setiap pembersihan yang berhasil akan tercatat di sini.',
-            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+            style: TextStyle(fontSize: 12, color: palette.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],
@@ -211,11 +218,12 @@ class _HistoryList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appColors;
     final fmt = DateFormat('dd MMM yyyy • HH:mm');
     return ListView.separated(
       itemCount: records.length,
       separatorBuilder: (_, __) =>
-          const Divider(height: 1, color: AppTheme.cardBorder),
+          Divider(height: 1, color: palette.cardBorder),
       itemBuilder: (ctx, i) {
         final r = records[i];
         return Padding(
@@ -227,12 +235,15 @@ class _HistoryList extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: AppTheme.pillGreen,
+                  color: AppTheme.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppTheme.success.withValues(alpha: 0.30),
+                  ),
                 ),
                 child: const Icon(
                   Icons.check_rounded,
-                  color: AppTheme.pillGreenText,
+                  color: AppTheme.success,
                   size: 18,
                 ),
               ),
@@ -243,9 +254,10 @@ class _HistoryList extends StatelessWidget {
                   children: [
                     Text(
                       fmt.format(r.timestamp),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
+                        color: palette.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -253,9 +265,9 @@ class _HistoryList extends StatelessWidget {
                       'Preset: ${r.preset} • '
                       'Durasi ${r.duration.inSeconds}s • '
                       'Terdeteksi ${_formatBytes(r.detectedSizeBytes)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: AppTheme.textSecondary,
+                        color: palette.textSecondary,
                       ),
                     ),
                     if (r.items.isNotEmpty) ...[
@@ -271,14 +283,17 @@ class _HistoryList extends StatelessWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.pillBlue,
+                                  color: palette.surfaceMuted,
                                   borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: palette.surfaceMutedBorder,
+                                  ),
                                 ),
                                 child: Text(
                                   it,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 10,
-                                    color: AppTheme.pillBlueText,
+                                    color: palette.textPrimary,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_colors.dart';
 import '../battery_screen.dart';
-import '../../theme/app_theme.dart';
 
 /// Modern shell that hosts the existing BatteryScreen on the new background.
 class ModernBatteryScreen extends StatelessWidget {
@@ -10,7 +10,7 @@ class ModernBatteryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.pageBackground,
+      color: context.appColors.pageBackground,
       child: const BatteryScreen(),
     );
   }

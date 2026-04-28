@@ -6,6 +6,7 @@ import '../../services/cleaning_history_service.dart';
 import '../../services/system_service.dart';
 import '../../state/cleaning_history_provider.dart';
 import '../../state/cleaning_preset_provider.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/error_handler.dart';
 import '../../widgets/modern/cleaning_history_dialog.dart';
@@ -350,6 +351,7 @@ class _ModernSystemCleanerScreenState
   }
 
   Widget _buildHeader() {
+    final palette = context.appColors;
     return ModernCard(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Row(
@@ -358,11 +360,7 @@ class _ModernSystemCleanerScreenState
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.primary, AppTheme.accent],
-              ),
+              color: AppTheme.primary,
               borderRadius: BorderRadius.circular(12),
             ),
             alignment: Alignment.center,
@@ -372,7 +370,7 @@ class _ModernSystemCleanerScreenState
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -381,13 +379,16 @@ class _ModernSystemCleanerScreenState
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
+                    color: palette.textPrimary,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   'Bersihkan, periksa, dan optimalkan PC Anda',
-                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: palette.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -426,18 +427,6 @@ class _ModernSystemCleanerScreenState
     final current = ref.watch(cleaningPresetProvider);
     Widget pill(CleaningPreset preset) {
       final selected = current == preset;
-      final tint = switch (preset) {
-        CleaningPreset.light => AppTheme.pillBlue,
-        CleaningPreset.standard => AppTheme.pillGreen,
-        CleaningPreset.deep => AppTheme.pillPurple,
-        CleaningPreset.custom => AppTheme.pillAmber,
-      };
-      final tintText = switch (preset) {
-        CleaningPreset.light => AppTheme.pillBlueText,
-        CleaningPreset.standard => AppTheme.pillGreenText,
-        CleaningPreset.deep => AppTheme.pillPurpleText,
-        CleaningPreset.custom => AppTheme.pillAmberText,
-      };
       final icon = switch (preset) {
         CleaningPreset.light => Icons.cleaning_services_outlined,
         CleaningPreset.standard => Icons.cleaning_services,
@@ -447,8 +436,6 @@ class _ModernSystemCleanerScreenState
       return ModernSelectablePill(
         icon: icon,
         label: '${preset.label} • ${preset.description}',
-        tint: tint,
-        tintText: tintText,
         selected: selected,
         onTap: () => _applyPreset(preset),
       );
@@ -533,10 +520,9 @@ class _ModernSystemCleanerScreenState
               subtitle: 'Pilih browser dan folder yang ingin dibersihkan',
             ),
           ),
-          ModernBadge(
+          ModernBadge.tone(
+            tone: PillTone.primary,
             text: 'Data terdeteksi  ${_totalDetectedSize()}',
-            background: AppTheme.pillBlue,
-            foreground: AppTheme.pillBlueText,
             icon: Icons.data_usage,
           ),
         ],
@@ -562,24 +548,18 @@ class _ModernSystemCleanerScreenState
               ModernSelectablePill(
                 icon: Icons.public,
                 label: 'Chrome',
-                tint: AppTheme.pillBlue,
-                tintText: AppTheme.pillBlueText,
                 selected: _chromeSelected,
                 onTap: () => setState(() => _chromeSelected = !_chromeSelected),
               ),
               ModernSelectablePill(
                 icon: Icons.web,
                 label: 'Edge',
-                tint: AppTheme.pillTeal,
-                tintText: AppTheme.pillTealText,
                 selected: _edgeSelected,
                 onTap: () => setState(() => _edgeSelected = !_edgeSelected),
               ),
               ModernSelectablePill(
                 icon: Icons.local_fire_department,
                 label: 'Firefox',
-                tint: AppTheme.pillAmber,
-                tintText: AppTheme.pillAmberText,
                 selected: _firefoxSelected,
                 onTap: () =>
                     setState(() => _firefoxSelected = !_firefoxSelected),
@@ -587,16 +567,12 @@ class _ModernSystemCleanerScreenState
               ModernSelectablePill(
                 icon: Icons.shield_moon_outlined,
                 label: 'Brave',
-                tint: AppTheme.pillPink,
-                tintText: AppTheme.pillPinkText,
                 selected: _braveSelected,
                 onTap: () => setState(() => _braveSelected = !_braveSelected),
               ),
               ModernSelectablePill(
                 icon: Icons.restart_alt,
                 label: 'Reset Browser',
-                tint: AppTheme.pillPurple,
-                tintText: AppTheme.pillPurpleText,
                 selected: _resetBrowserSelected,
                 onTap: () => setState(
                   () => _resetBrowserSelected = !_resetBrowserSelected,
@@ -618,14 +594,6 @@ class _ModernSystemCleanerScreenState
       'Videos': Icons.movie_outlined,
       '3D Objects': Icons.view_in_ar_outlined,
     };
-    final tints = <List<Color>>[
-      [AppTheme.pillBlue, AppTheme.pillBlueText],
-      [AppTheme.pillGreen, AppTheme.pillGreenText],
-      [AppTheme.pillPink, AppTheme.pillPinkText],
-      [AppTheme.pillPurple, AppTheme.pillPurpleText],
-      [AppTheme.pillTeal, AppTheme.pillTealText],
-      [AppTheme.pillAmber, AppTheme.pillAmberText],
-    ];
 
     final infoMap = {for (final f in _folderInfos) f.name: f};
     return ModernCard(
@@ -650,8 +618,6 @@ class _ModernSystemCleanerScreenState
                   label: _folderSelected.keys.elementAt(i),
                   trailingText:
                       infoMap[_folderSelected.keys.elementAt(i)]?.size,
-                  tint: tints[i % tints.length][0],
-                  tintText: tints[i % tints.length][1],
                   selected:
                       _folderSelected[_folderSelected.keys.elementAt(i)] ??
                       false,
@@ -682,11 +648,14 @@ class _ModernSystemCleanerScreenState
           ),
           const SizedBox(height: 12),
           if (_diskInfo.isEmpty && _ramInfo.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
                 'Memuat info perangkat keras...',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                style: TextStyle(
+                  color: context.appColors.textSecondary,
+                  fontSize: 12,
+                ),
               ),
             )
           else ...[
@@ -705,6 +674,7 @@ class _ModernSystemCleanerScreenState
   }
 
   Widget _diskTile(Map<String, dynamic> disk) {
+    final palette = context.appColors;
     final name = (disk['model'] ?? disk['friendlyName'] ?? 'Disk').toString();
     final type = (disk['mediaType'] ?? disk['type'] ?? '').toString();
     final size =
@@ -724,8 +694,9 @@ class _ModernSystemCleanerScreenState
       width: 270,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.pillBlue,
+        color: palette.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.surfaceMutedBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -735,7 +706,7 @@ class _ModernSystemCleanerScreenState
               Icon(
                 isSsd ? Icons.bolt : Icons.album,
                 size: 16,
-                color: AppTheme.pillBlueText,
+                color: palette.textSecondary,
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -743,32 +714,28 @@ class _ModernSystemCleanerScreenState
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
-                    color: AppTheme.pillBlueText,
+                    color: palette.textPrimary,
                   ),
                 ),
               ),
-              ModernBadge(
+              ModernBadge.tone(
+                tone: ok ? PillTone.success : PillTone.warning,
                 text: ok ? 'Sehat' : 'Periksa',
-                background: ok ? AppTheme.pillGreen : AppTheme.pillRed,
-                foreground: ok ? AppTheme.pillGreenText : AppTheme.pillRedText,
               ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             'Tipe: ${type.isEmpty ? "-" : type} • $size',
-            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+            style: TextStyle(fontSize: 11, color: palette.textSecondary),
           ),
           if (temp.isNotEmpty)
             Text(
               'Suhu: $temp',
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppTheme.textSecondary,
-              ),
+              style: TextStyle(fontSize: 11, color: palette.textSecondary),
             ),
         ],
       ),
@@ -776,36 +743,41 @@ class _ModernSystemCleanerScreenState
   }
 
   Widget _ramTile(String ramTotal) {
+    final palette = context.appColors;
     final ramGb =
         ((_ramInfo['totalMemoryBytes'] as num?)?.toDouble() ?? 0) /
         (1024 * 1024 * 1024);
-    final warn = ramGb < 8;
+    final warn = ramGb > 0 && ramGb < 8;
     return Container(
       width: 220,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: warn ? AppTheme.pillRed : AppTheme.pillGreen,
+        color: palette.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.surfaceMutedBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.memory,
-                size: 16,
-                color: warn ? AppTheme.pillRedText : AppTheme.pillGreenText,
-              ),
+              Icon(Icons.memory, size: 16, color: palette.textSecondary),
               const SizedBox(width: 6),
-              Text(
-                'RAM Total',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                  color: warn ? AppTheme.pillRedText : AppTheme.pillGreenText,
+              Expanded(
+                child: Text(
+                  'RAM Total',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    color: palette.textPrimary,
+                  ),
                 ),
               ),
+              if (warn)
+                const ModernBadge.tone(
+                  tone: PillTone.warning,
+                  text: 'Rendah',
+                ),
             ],
           ),
           const SizedBox(height: 6),
@@ -814,12 +786,12 @@ class _ModernSystemCleanerScreenState
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: warn ? AppTheme.pillRedText : AppTheme.pillGreenText,
+              color: palette.textPrimary,
             ),
           ),
           Text(
             warn ? 'RAM rendah, pertimbangkan upgrade' : 'Kapasitas memadai',
-            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+            style: TextStyle(fontSize: 11, color: palette.textSecondary),
           ),
         ],
       ),
@@ -841,10 +813,9 @@ class _ModernSystemCleanerScreenState
   }
 
   Widget _buildSecurityCard() {
+    final palette = context.appColors;
     Widget statusRow({
       required IconData icon,
-      required Color iconColor,
-      required Color iconBg,
       required String title,
       required SystemStatus status,
       Widget? action,
@@ -858,11 +829,12 @@ class _ModernSystemCleanerScreenState
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: iconBg,
+                color: palette.surfaceMuted,
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: palette.surfaceMutedBorder),
               ),
               alignment: Alignment.center,
-              child: Icon(icon, size: 16, color: iconColor),
+              child: Icon(icon, size: 16, color: palette.textSecondary),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -871,17 +843,17 @@ class _ModernSystemCleanerScreenState
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+                      color: palette.textPrimary,
                     ),
                   ),
                   Text(
                     status.status,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: AppTheme.textSecondary,
+                      color: palette.textSecondary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -889,12 +861,9 @@ class _ModernSystemCleanerScreenState
                 ],
               ),
             ),
-            ModernBadge(
+            ModernBadge.tone(
+              tone: isActive ? PillTone.success : PillTone.warning,
               text: isActive ? 'Aktif' : 'Periksa',
-              background: isActive ? AppTheme.pillGreen : AppTheme.pillAmber,
-              foreground: isActive
-                  ? AppTheme.pillGreenText
-                  : AppTheme.pillAmberText,
             ),
             if (action != null) ...[const SizedBox(width: 6), action],
           ],
@@ -914,16 +883,12 @@ class _ModernSystemCleanerScreenState
           const SizedBox(height: 6),
           statusRow(
             icon: Icons.shield_rounded,
-            iconColor: AppTheme.pillGreenText,
-            iconBg: AppTheme.pillGreen,
             title: 'Windows Defender',
             status: _defenderStatus,
           ),
           const Divider(),
           statusRow(
             icon: Icons.system_update_alt,
-            iconColor: AppTheme.pillBlueText,
-            iconBg: AppTheme.pillBlue,
             title: 'Windows Update',
             status: _updateStatus,
             action: TextButton(
@@ -934,8 +899,6 @@ class _ModernSystemCleanerScreenState
           const Divider(),
           statusRow(
             icon: Icons.workspace_premium,
-            iconColor: AppTheme.pillPurpleText,
-            iconBg: AppTheme.pillPurple,
             title: 'Aktivasi Windows',
             status: _winActStatus,
             action: TextButton(
@@ -953,8 +916,6 @@ class _ModernSystemCleanerScreenState
           const Divider(),
           statusRow(
             icon: Icons.business_center_outlined,
-            iconColor: AppTheme.pillTealText,
-            iconBg: AppTheme.pillTeal,
             title: 'Aktivasi Office',
             status: _officeActStatus,
             action: TextButton(
@@ -992,8 +953,6 @@ class _ModernSystemCleanerScreenState
               ModernSelectablePill(
                 icon: Icons.history_toggle_off,
                 label: 'Hapus Recent',
-                tint: AppTheme.pillBlue,
-                tintText: AppTheme.pillBlueText,
                 selected: _clearRecentSelected,
                 onTap: () => setState(
                   () => _clearRecentSelected = !_clearRecentSelected,
@@ -1002,8 +961,6 @@ class _ModernSystemCleanerScreenState
               ModernSelectablePill(
                 icon: Icons.delete_outline,
                 label: 'Kosongkan Bin',
-                tint: AppTheme.pillRed,
-                tintText: AppTheme.pillRedText,
                 selected: _clearRecycleBinSelected,
                 onTap: () => setState(
                   () => _clearRecycleBinSelected = !_clearRecycleBinSelected,
@@ -1038,29 +995,21 @@ class _ModernSystemCleanerScreenState
               ModernActionPill(
                 icon: Icons.volume_up,
                 label: 'Test Sound',
-                tint: AppTheme.pillBlue,
-                tintText: AppTheme.pillBlueText,
                 onTap: () => _openTest(const SoundTestLR()),
               ),
               ModernActionPill(
                 icon: Icons.keyboard_alt_outlined,
                 label: 'Test Keyboard',
-                tint: AppTheme.pillGreen,
-                tintText: AppTheme.pillGreenText,
                 onTap: () => _openTest(const KeyboardTestCompleteFixed()),
               ),
               ModernActionPill(
                 icon: Icons.mic_none_outlined,
                 label: 'Test Mic',
-                tint: AppTheme.pillPurple,
-                tintText: AppTheme.pillPurpleText,
                 onTap: () => _openTest(const MicrophoneTest()),
               ),
               ModernActionPill(
                 icon: Icons.videocam_outlined,
                 label: 'Test Kamera',
-                tint: AppTheme.pillPink,
-                tintText: AppTheme.pillPinkText,
                 onTap: () => _openTest(const WebcamTest()),
               ),
             ],

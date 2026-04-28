@@ -5,7 +5,9 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../state/theme_provider.dart';
 import '../../state/update_status_provider.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
+import 'modern_pill.dart';
 
 class SettingsDialog extends ConsumerWidget {
   const SettingsDialog({super.key});
@@ -87,27 +89,11 @@ class SettingsDialog extends ConsumerWidget {
                     ? 'Aktif — error otomatis dikirim ke Sentry'
                     : 'Nonaktif — pasang DSN saat build dengan '
                           '--dart-define=SENTRY_DSN=https://... untuk mengaktifkan',
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Sentry.isEnabled
-                        ? AppTheme.pillGreen
-                        : AppTheme.pillAmber,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    Sentry.isEnabled ? 'AKTIF' : 'NONAKTIF',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Sentry.isEnabled
-                          ? AppTheme.pillGreenText
-                          : AppTheme.pillAmberText,
-                    ),
-                  ),
+                trailing: ModernBadge.tone(
+                  tone: Sentry.isEnabled
+                      ? PillTone.success
+                      : PillTone.warning,
+                  text: Sentry.isEnabled ? 'AKTIF' : 'NONAKTIF',
                 ),
               ),
 
@@ -167,12 +153,13 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appColors;
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w800,
-        color: AppTheme.textSecondary,
+        color: palette.textSecondary,
         letterSpacing: 0.6,
       ),
     );
@@ -194,16 +181,17 @@ class _StatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appColors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppTheme.pillBlue.withValues(alpha: 0.4),
+        color: palette.surfaceMuted,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(color: palette.surfaceMutedBorder),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppTheme.primary),
+          Icon(icon, size: 18, color: palette.textSecondary),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -211,17 +199,18 @@ class _StatusRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
+                    color: palette.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: AppTheme.textSecondary,
+                    color: palette.textSecondary,
                   ),
                 ),
               ],
