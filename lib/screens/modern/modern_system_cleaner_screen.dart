@@ -690,25 +690,40 @@ class _ModernSystemCleanerScreenState
         health.toLowerCase().contains('ok') ||
         health.toLowerCase().contains('healthy') ||
         health.isEmpty;
+
+    final accent = ok ? AppTheme.success : AppTheme.danger;
+    final bg = accent.withValues(alpha: 0.10);
+    final border = accent.withValues(alpha: 0.35);
+    final iconBubbleBg = accent.withValues(alpha: 0.20);
+
     return Container(
       width: 270,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: palette.surfaceMuted,
+        color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: palette.surfaceMutedBorder),
+        border: Border.all(color: border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                isSsd ? Icons.bolt : Icons.album,
-                size: 16,
-                color: palette.textSecondary,
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: iconBubbleBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  isSsd ? Icons.bolt : Icons.album,
+                  size: 16,
+                  color: accent,
+                ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   name,
@@ -723,7 +738,10 @@ class _ModernSystemCleanerScreenState
               ),
               ModernBadge.tone(
                 tone: ok ? PillTone.success : PillTone.warning,
-                text: ok ? 'Sehat' : 'Periksa',
+                text: ok ? 'Bagus' : 'Periksa',
+                icon: ok
+                    ? Icons.check_circle_outline
+                    : Icons.warning_amber_rounded,
               ),
             ],
           ),
@@ -748,21 +766,34 @@ class _ModernSystemCleanerScreenState
         ((_ramInfo['totalMemoryBytes'] as num?)?.toDouble() ?? 0) /
         (1024 * 1024 * 1024);
     final warn = ramGb > 0 && ramGb < 8;
+    final accent = warn ? AppTheme.danger : AppTheme.success;
+    final bg = accent.withValues(alpha: 0.10);
+    final border = accent.withValues(alpha: 0.35);
+    final iconBubbleBg = accent.withValues(alpha: 0.20);
     return Container(
       width: 220,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: palette.surfaceMuted,
+        color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: palette.surfaceMutedBorder),
+        border: Border.all(color: border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.memory, size: 16, color: palette.textSecondary),
-              const SizedBox(width: 6),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: iconBubbleBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Icon(Icons.memory, size: 16, color: accent),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'RAM Total',
@@ -775,8 +806,9 @@ class _ModernSystemCleanerScreenState
               ),
               if (warn)
                 const ModernBadge.tone(
-                  tone: PillTone.warning,
+                  tone: PillTone.danger,
                   text: 'Rendah',
+                  icon: Icons.warning_amber_rounded,
                 ),
             ],
           ),
@@ -821,20 +853,26 @@ class _ModernSystemCleanerScreenState
       Widget? action,
     }) {
       final isActive = status.isActive;
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+      final accent = isActive ? AppTheme.success : AppTheme.danger;
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: accent.withValues(alpha: 0.25)),
+        ),
         child: Row(
           children: [
             Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: palette.surfaceMuted,
+                color: accent.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: palette.surfaceMutedBorder),
               ),
               alignment: Alignment.center,
-              child: Icon(icon, size: 16, color: palette.textSecondary),
+              child: Icon(icon, size: 16, color: accent),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -862,8 +900,11 @@ class _ModernSystemCleanerScreenState
               ),
             ),
             ModernBadge.tone(
-              tone: isActive ? PillTone.success : PillTone.warning,
+              tone: isActive ? PillTone.success : PillTone.danger,
               text: isActive ? 'Aktif' : 'Periksa',
+              icon: isActive
+                  ? Icons.check_circle_outline
+                  : Icons.warning_amber_rounded,
             ),
             if (action != null) ...[const SizedBox(width: 6), action],
           ],
@@ -880,13 +921,12 @@ class _ModernSystemCleanerScreenState
             title: 'Keamanan & Aktivasi',
             subtitle: 'Status Defender, Update, dan aktivasi',
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           statusRow(
             icon: Icons.shield_rounded,
             title: 'Windows Defender',
             status: _defenderStatus,
           ),
-          const Divider(),
           statusRow(
             icon: Icons.system_update_alt,
             title: 'Windows Update',
@@ -896,7 +936,6 @@ class _ModernSystemCleanerScreenState
               child: const Text('Buka', style: TextStyle(fontSize: 11)),
             ),
           ),
-          const Divider(),
           statusRow(
             icon: Icons.workspace_premium,
             title: 'Aktivasi Windows',
@@ -913,7 +952,6 @@ class _ModernSystemCleanerScreenState
               child: const Text('Aktivasi', style: TextStyle(fontSize: 11)),
             ),
           ),
-          const Divider(),
           statusRow(
             icon: Icons.business_center_outlined,
             title: 'Aktivasi Office',

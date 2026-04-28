@@ -31,27 +31,27 @@ _ToneStyle _resolveTone(BuildContext context, PillTone tone) {
       );
     case PillTone.primary:
       return _ToneStyle(
-        background: AppTheme.primary.withValues(alpha: 0.10),
+        background: AppTheme.primary.withValues(alpha: 0.14),
         foreground: AppTheme.primaryDark,
-        border: AppTheme.primary.withValues(alpha: 0.30),
+        border: AppTheme.primary.withValues(alpha: 0.40),
       );
     case PillTone.success:
       return _ToneStyle(
-        background: AppTheme.success.withValues(alpha: 0.12),
+        background: AppTheme.success.withValues(alpha: 0.14),
         foreground: AppTheme.pillGreenText,
-        border: AppTheme.success.withValues(alpha: 0.30),
+        border: AppTheme.success.withValues(alpha: 0.40),
       );
     case PillTone.warning:
       return _ToneStyle(
-        background: AppTheme.warning.withValues(alpha: 0.16),
+        background: AppTheme.warning.withValues(alpha: 0.18),
         foreground: AppTheme.pillAmberText,
-        border: AppTheme.warning.withValues(alpha: 0.35),
+        border: AppTheme.warning.withValues(alpha: 0.40),
       );
     case PillTone.danger:
       return _ToneStyle(
-        background: AppTheme.danger.withValues(alpha: 0.12),
+        background: AppTheme.danger.withValues(alpha: 0.14),
         foreground: AppTheme.pillRedText,
-        border: AppTheme.danger.withValues(alpha: 0.30),
+        border: AppTheme.danger.withValues(alpha: 0.40),
       );
   }
 }
@@ -92,15 +92,21 @@ class ModernSelectablePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appColors;
-    final tone = selected ? PillTone.primary : PillTone.neutral;
+    final tone = PillTone.primary;
     final style = _resolveTone(context, tone);
 
-    final bg = disabled ? palette.surfaceMuted : style.background;
+    final bg = disabled
+        ? palette.surfaceMuted
+        : (selected
+            ? style.background
+            : AppTheme.primary.withValues(alpha: 0.06));
     final fg = disabled ? palette.textMuted : style.foreground;
-    final borderColor = disabled ? palette.surfaceMutedBorder : style.border;
-    final iconBubbleBg = selected
-        ? AppTheme.primary.withValues(alpha: 0.18)
-        : palette.cardBackground;
+    final borderColor = disabled
+        ? palette.surfaceMutedBorder
+        : (selected
+            ? style.border
+            : AppTheme.primary.withValues(alpha: 0.18));
+    final iconBubbleBg = AppTheme.primary.withValues(alpha: 0.20);
 
     return Material(
       color: Colors.transparent,
@@ -125,7 +131,11 @@ class ModernSelectablePill extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 alignment: Alignment.center,
-                child: Icon(icon, size: 16, color: fg),
+                child: Icon(
+                  icon,
+                  size: 16,
+                  color: AppTheme.primaryDark,
+                ),
               ),
               const SizedBox(width: 10),
               Flexible(
@@ -218,7 +228,8 @@ class ModernActionPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.appColors;
     final disabled = onTap == null;
-    final style = _resolveTone(context, tone);
+    final effectiveTone = tone == PillTone.neutral ? PillTone.primary : tone;
+    final style = _resolveTone(context, effectiveTone);
     final bg = disabled ? palette.surfaceMuted : style.background;
     final fg = disabled ? palette.textMuted : style.foreground;
     final borderColor = disabled ? palette.surfaceMutedBorder : style.border;
