@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/system_status.dart';
+import '../../services/cleaning_history_service.dart';
 import '../../services/system_service.dart';
+import '../../state/cleaning_history_provider.dart';
+import '../../state/cleaning_preset_provider.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/error_handler.dart';
+import '../../widgets/modern/cleaning_history_dialog.dart';
 import '../../widgets/modern/modern_card.dart';
 import '../../widgets/modern/modern_pill.dart';
 import '../state/status_message_provider.dart';
@@ -13,8 +18,18 @@ import '../../widgets/sound_test_lr.dart';
 import '../../widgets/microphone_test.dart';
 import '../../widgets/webcam_test.dart';
 
-/// Modern System Cleaner — the main page shown in the design.
-/// Wires browser/folder cleaning, system status checks, and quick tests.
+/// Modern System Cleaner — designed to mirror the reference screenshot.
+///
+/// Layout:
+/// - Top header card: mascot + title/version + inline quick-test pills +
+///   Riwayat / Scan Ulang / Pilih semua / Bersihkan actions on the right.
+/// - Two columns when wide (>= 980px):
+///   * Left:  Cleaning Options card (Browser pills + Folder pills + preset
+///            row) + Storage & RAM card (RAM tile + per-disk tiles, only
+///            tinted when there is a problem).
+///   * Right: Battery Health card + Security/Activation rows +
+///            Recent apps card + 2x2 hardware quick-test grid + a
+///            Kosongkan Bin / Fast Startup pill row.
 class ModernSystemCleanerScreen extends ConsumerStatefulWidget {
   const ModernSystemCleanerScreen({super.key});
 
@@ -46,18 +61,18 @@ class _ModernSystemCleanerScreenState
   bool _clearRecentSelected = false;
   bool _clearRecycleBinSelected = false;
 
-  // Status
+  // Status flags
   bool _isChecking = false;
   bool _isCleaning = false;
 
   // Cached results
   SystemStatus _defenderStatus = SystemStatus(status: 'Memeriksa...');
-  SystemStatus _updateStatus = SystemStatus(status: 'Memeriksa...');
   SystemStatus _winActStatus = SystemStatus(status: 'Memeriksa...');
   SystemStatus _officeActStatus = SystemStatus(status: 'Memeriksa...');
   List<FolderInfo> _folderInfos = [];
   Map<String, dynamic> _ramInfo = {};
   List<Map<String, dynamic>> _diskInfo = [];
+  BatteryStatus _batteryStatus = BatteryStatus();
 
   void _setStatus(String s) =>
       ref.read(statusMessageProvider.notifier).state = s;
@@ -65,7 +80,36 @@ class _ModernSystemCleanerScreenState
   @override
   void initState() {
     super.initState();
-    Future.microtask(_initialScan);
+    Future.microtask(() async {
+      _applyCurrentPresetIfNotCustom();
+      await _initialScan();
+    });
+  }
+
+  void _applyCurrentPresetIfNotCustom() {
+    final preset = ref.read(cleaningPresetProvider);
+    if (preset == CleaningPreset.custom) return;
+    _applyPreset(preset, persist: false);
+  }
+
+  void _applyPreset(CleaningPreset preset, {bool persist = true}) {
+    final selection = CleaningSelection.forPreset(preset);
+    setState(() {
+      _chromeSelected = selection.chrome;
+      _edgeSelected = selection.edge;
+      _firefoxSelected = selection.firefox;
+      _braveSelected = selection.brave;
+      _resetBrowserSelected = selection.resetBrowser;
+      for (final key in _folderSelected.keys) {
+        _folderSelected[key] = selection.folders[key] ?? false;
+      }
+      _clearRecentSelected = selection.clearRecent;
+      _clearRecycleBinSelected = selection.clearRecycleBin;
+    });
+    if (persist) {
+      ref.read(cleaningPresetProvider.notifier).set(preset);
+    }
+    _setStatus('Preset diterapkan: ${preset.label}.');
   }
 
   Future<void> _initialScan() async {
@@ -82,9 +126,6 @@ class _ModernSystemCleanerScreenState
         SystemService.checkWindowsDefender().catchError(
           (_) => SystemStatus(status: 'Error', isActive: false),
         ),
-        SystemService.checkWindowsUpdate().catchError(
-          (_) => SystemStatus(status: 'Error', isActive: false),
-        ),
         SystemService.checkWindowsActivationQuick().catchError(
           (_) => SystemStatus(status: 'Error', isActive: false),
         ),
@@ -94,22 +135,23 @@ class _ModernSystemCleanerScreenState
         SystemService.getFolderSizesUltraFast(
           timeout: const Duration(seconds: 6),
         ).catchError((_) => <FolderInfo>[]),
-        SystemService.getRamInfo().catchError(
-          (_) => <String, dynamic>{},
-        ),
+        SystemService.getRamInfo().catchError((_) => <String, dynamic>{}),
         SystemService.getPhysicalDiskInfo().catchError(
           (_) => <Map<String, dynamic>>[],
+        ),
+        SystemService.getBatteryStatus().catchError(
+          (_) => BatteryStatus(),
         ),
       ]);
       if (!mounted) return;
       setState(() {
         _defenderStatus = results[0] as SystemStatus;
-        _updateStatus = results[1] as SystemStatus;
-        _winActStatus = results[2] as SystemStatus;
-        _officeActStatus = results[3] as SystemStatus;
-        _folderInfos = results[4] as List<FolderInfo>;
-        _ramInfo = results[5] as Map<String, dynamic>;
-        _diskInfo = results[6] as List<Map<String, dynamic>>;
+        _winActStatus = results[1] as SystemStatus;
+        _officeActStatus = results[2] as SystemStatus;
+        _folderInfos = results[3] as List<FolderInfo>;
+        _ramInfo = results[4] as Map<String, dynamic>;
+        _diskInfo = results[5] as List<Map<String, dynamic>>;
+        _batteryStatus = results[6] as BatteryStatus;
       });
       _setStatus('Pemeriksaan selesai.');
     } catch (e, st) {
@@ -135,11 +177,22 @@ class _ModernSystemCleanerScreenState
     });
   }
 
+  bool get _isAllSelected =>
+      _chromeSelected &&
+      _edgeSelected &&
+      _firefoxSelected &&
+      _braveSelected &&
+      _resetBrowserSelected &&
+      _folderSelected.values.every((v) => v) &&
+      _clearRecentSelected &&
+      _clearRecycleBinSelected;
+
   Future<void> _startCleaning() async {
-    final anyBrowser = _chromeSelected ||
-        _edgeSelected ||
-        _firefoxSelected ||
-        _braveSelected;
+    // NOTE: Brave is included in the "anyBrowser" check because the user can
+    // select the Brave pill, but SystemService.cleanBrowsers does not yet
+    // accept a brave parameter — Brave-specific cleanup is a backend TODO.
+    final anyBrowser =
+        _chromeSelected || _edgeSelected || _firefoxSelected || _braveSelected;
     final anyFolder = _folderSelected.values.any((e) => e);
     if (!anyBrowser &&
         !anyFolder &&
@@ -158,9 +211,18 @@ class _ModernSystemCleanerScreenState
     setState(() => _isCleaning = true);
     _setStatus('Membersihkan...');
 
+    final start = DateTime.now();
+    final actions = <String>[];
+    final detectedSize = _selectedFolderTotalBytes();
     try {
       final tasks = <Future<dynamic>>[];
-      if (anyBrowser) {
+      // Skip the Chromium-family clean call entirely if the only selected
+      // browser is Brave — cleanBrowsers does not yet support Brave so it
+      // would record a no-op cleaning to history.
+      final chromiumBrowsersSelected =
+          _chromeSelected || _edgeSelected || _firefoxSelected;
+      if (chromiumBrowsersSelected) {
+        actions.add('Browser');
         tasks.add(
           SystemService.cleanBrowsers(
             chrome: _chromeSelected,
@@ -171,6 +233,7 @@ class _ModernSystemCleanerScreenState
         );
       }
       if (anyFolder) {
+        actions.add('Folder pengguna');
         tasks.add(
           SystemService.cleanSystemFolders(
             documents: _folderSelected['Documents'] ?? false,
@@ -182,14 +245,35 @@ class _ModernSystemCleanerScreenState
           ),
         );
       }
-      if (_clearRecentSelected) tasks.add(SystemService.clearRecentFiles());
-      if (_clearRecycleBinSelected) tasks.add(SystemService.clearRecycleBin());
+      if (_clearRecentSelected) {
+        actions.add('Recent');
+        tasks.add(SystemService.clearRecentFiles());
+      }
+      if (_clearRecycleBinSelected) {
+        actions.add('Recycle Bin');
+        tasks.add(SystemService.clearRecycleBin());
+      }
 
       await Future.wait(tasks);
       _setStatus('Pembersihan selesai.');
+      await ref
+          .read(cleaningHistoryProvider.notifier)
+          .append(
+            CleaningRecord(
+              timestamp: start,
+              duration: DateTime.now().difference(start),
+              detectedSizeBytes: detectedSize,
+              items: actions,
+              preset: ref.read(cleaningPresetProvider).name,
+            ),
+          );
       if (!mounted) return;
-      _showInfo('Pembersihan selesai.');
-      // Refresh folder sizes after cleaning
+      if (_braveSelected && !chromiumBrowsersSelected) {
+        _showInfo(
+            'Brave terpilih, tetapi backend belum mendukung — tidak ada yang dibersihkan.');
+      } else {
+        _showInfo('Pembersihan selesai.');
+      }
       Future.microtask(_initialScan);
     } catch (e, st) {
       GlobalErrorHandler.report(e, st);
@@ -199,7 +283,12 @@ class _ModernSystemCleanerScreenState
     }
   }
 
-  // ---- Helpers ----
+  int _selectedFolderTotalBytes() {
+    return _folderInfos
+        .where((f) => _folderSelected[f.name] ?? false)
+        .fold<int>(0, (sum, f) => sum + f.sizeBytes);
+  }
+
   void _showInfo(String text) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -251,154 +340,279 @@ class _ModernSystemCleanerScreenState
     return _formatBytes(folderTotal);
   }
 
-  // ---- Open generic test screens ----
   void _openTest(Widget child) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => child),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => child));
   }
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (ctx, c) {
-              final wide = c.maxWidth >= 980;
-              if (!wide) {
-                return Column(
-                  children: [
-                    _buildLeftColumn(),
-                    const SizedBox(height: 14),
-                    _buildRightColumn(),
-                  ],
-                );
-              }
-              return Row(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      child: LayoutBuilder(
+        builder: (ctx, c) {
+          final wide = c.maxWidth >= 980;
+          if (!wide) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 14),
+                _buildLeftColumn(),
+                const SizedBox(height: 14),
+                _buildRightColumn(),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 14),
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(flex: 7, child: _buildLeftColumn()),
                   const SizedBox(width: 14),
                   Expanded(flex: 5, child: _buildRightColumn()),
                 ],
-              );
-            },
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
+  // ---------- HEADER ----------
   Widget _buildHeader() {
+    final palette = context.appColors;
     return ModernCard(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.primary, AppTheme.accent],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.cleaning_services_rounded,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Sekom Cleaner',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Bersihkan, periksa, dan optimalkan PC Anda',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Wrap(
-            spacing: 8,
+      child: LayoutBuilder(
+        builder: (ctx, c) {
+          final wide = c.maxWidth >= 760;
+          final titleBlock = Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _smallButton(
-                icon: Icons.refresh,
-                label: _isChecking ? 'Memeriksa...' : 'Scan Ulang',
-                onTap: _isChecking ? null : _checkAll,
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFFFD33C), Color(0xFFFFB020)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.cleaning_services_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
-              _smallButton(
-                icon: Icons.checklist_rounded,
-                label: 'Pilih semua',
-                onTap: () => _selectAll(true),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Sekom Cleaner',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'v1.1.0',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: palette.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-              _primaryButton(
-                icon: _isCleaning ? Icons.hourglass_top : Icons.delete_sweep,
-                label: _isCleaning ? 'Membersihkan...' : 'Bersihkan',
-                onTap: _isCleaning ? null : _startCleaning,
+            ],
+          );
+
+          final quickTests = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _miniRadioPill(
+                label: 'Test Sound',
+                onTap: () => _openTest(const SoundTestLR()),
+              ),
+              _miniRadioPill(
+                label: 'Test Keyboard',
+                onTap: () => _openTest(const KeyboardTestCompleteFixed()),
+              ),
+              _miniRadioPill(
+                label: 'Test Mic',
+                onTap: () => _openTest(const MicrophoneTest()),
+              ),
+              _miniRadioPill(label: 'Bersihkan', onTap: _startCleaning),
+            ],
+          );
+
+          final actions = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => CleaningHistoryDialog.show(context),
+                icon: const Icon(Icons.history, size: 16),
+                label: const Text('Riwayat'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _isChecking ? null : _checkAll,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: Text(_isChecking ? 'Memeriksa...' : 'Scan Ulang'),
+              ),
+              _selectAllChip(),
+              ElevatedButton.icon(
+                onPressed: _isCleaning ? null : _startCleaning,
+                icon: Icon(
+                  _isCleaning ? Icons.hourglass_top : Icons.delete_sweep,
+                  size: 16,
+                ),
+                label: Text(_isCleaning ? 'Membersihkan...' : 'Bersihkan'),
+              ),
+            ],
+          );
+
+          if (wide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                titleBlock,
+                const SizedBox(width: 16),
+                Expanded(child: quickTests),
+                const SizedBox(width: 12),
+                actions,
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              titleBlock,
+              const SizedBox(height: 10),
+              quickTests,
+              const SizedBox(height: 10),
+              actions,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _miniRadioPill({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final palette = context.appColors;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: palette.cardBackground,
+            border: Border.all(color: palette.cardBorder),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: palette.cardBorder, width: 1.5),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: palette.textSecondary,
+                ),
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _smallButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback? onTap,
-  }) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 16),
-      label: Text(label),
+  Widget _selectAllChip() {
+    final palette = context.appColors;
+    final all = _isAllSelected;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _selectAll(!all),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: palette.cardBackground,
+            border: Border.all(color: palette.cardBorder),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: all ? AppTheme.primary : palette.cardBackground,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: all ? AppTheme.primary : palette.cardBorder,
+                    width: 1.5,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: all
+                    ? const Icon(Icons.check, size: 12, color: Colors.white)
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Pilih semua',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: palette.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _primaryButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback? onTap,
-  }) {
-    return ElevatedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 16),
-      label: Text(label),
-    );
-  }
-
-  // ---- Left column ----
+  // ---------- LEFT COLUMN ----------
   Widget _buildLeftColumn() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildCleaningOptionsCard(),
-        const SizedBox(height: 14),
-        _buildBrowserCard(),
-        const SizedBox(height: 14),
-        _buildFoldersCard(),
         const SizedBox(height: 14),
         _buildStorageRamCard(),
       ],
@@ -406,38 +620,77 @@ class _ModernSystemCleanerScreenState
   }
 
   Widget _buildCleaningOptionsCard() {
-    return ModernCard(
-      child: Row(
-        children: [
-          const Expanded(
-            child: ModernSectionHeader(
-              icon: Icons.tune_rounded,
-              title: 'Cleaning Options',
-              subtitle: 'Pilih browser dan folder yang ingin dibersihkan',
-            ),
-          ),
-          ModernBadge(
-            text: 'Data terdeteksi  ${_totalDetectedSize()}',
-            background: AppTheme.pillBlue,
-            foreground: AppTheme.pillBlueText,
-            icon: Icons.data_usage,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBrowserCard() {
+    final palette = context.appColors;
     return ModernCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const ModernSectionHeader(
-            icon: Icons.travel_explore,
-            title: 'Browser Cleanup',
-            subtitle: 'Cache, cookies, history, downloads',
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.cleaning_services_outlined,
+                  color: AppTheme.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cleaning Options',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Pilih browser dan folder yang ingin dibersihkan',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ModernBadge.tone(
+                tone: PillTone.primary,
+                text: 'Data terdeteksi  ${_totalDetectedSize()}',
+                icon: Icons.dataset_linked_outlined,
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 18),
+
+          Row(
+            children: [
+              const Icon(Icons.cleaning_services,
+                  size: 16, color: AppTheme.primary),
+              const SizedBox(width: 6),
+              Text(
+                'Browser Cleanup',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: palette.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -445,8 +698,6 @@ class _ModernSystemCleanerScreenState
               ModernSelectablePill(
                 icon: Icons.public,
                 label: 'Chrome',
-                tint: AppTheme.pillBlue,
-                tintText: AppTheme.pillBlueText,
                 selected: _chromeSelected,
                 onTap: () =>
                     setState(() => _chromeSelected = !_chromeSelected),
@@ -454,16 +705,12 @@ class _ModernSystemCleanerScreenState
               ModernSelectablePill(
                 icon: Icons.web,
                 label: 'Edge',
-                tint: AppTheme.pillTeal,
-                tintText: AppTheme.pillTealText,
                 selected: _edgeSelected,
                 onTap: () => setState(() => _edgeSelected = !_edgeSelected),
               ),
               ModernSelectablePill(
                 icon: Icons.local_fire_department,
                 label: 'Firefox',
-                tint: AppTheme.pillAmber,
-                tintText: AppTheme.pillAmberText,
                 selected: _firefoxSelected,
                 onTap: () =>
                     setState(() => _firefoxSelected = !_firefoxSelected),
@@ -471,16 +718,13 @@ class _ModernSystemCleanerScreenState
               ModernSelectablePill(
                 icon: Icons.shield_moon_outlined,
                 label: 'Brave',
-                tint: AppTheme.pillPink,
-                tintText: AppTheme.pillPinkText,
                 selected: _braveSelected,
-                onTap: () => setState(() => _braveSelected = !_braveSelected),
+                onTap: () =>
+                    setState(() => _braveSelected = !_braveSelected),
               ),
               ModernSelectablePill(
                 icon: Icons.restart_alt,
                 label: 'Reset Browser',
-                tint: AppTheme.pillPurple,
-                tintText: AppTheme.pillPurpleText,
                 selected: _resetBrowserSelected,
                 onTap: () => setState(
                   () => _resetBrowserSelected = !_resetBrowserSelected,
@@ -488,12 +732,100 @@ class _ModernSystemCleanerScreenState
               ),
             ],
           ),
+
+          const SizedBox(height: 18),
+
+          Row(
+            children: [
+              const Icon(Icons.folder_open_rounded,
+                  size: 16, color: AppTheme.primary),
+              const SizedBox(width: 6),
+              Text(
+                'System Folders',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: palette.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              _selectAllChip(),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildFolderPills(),
+
+          const SizedBox(height: 14),
+          _presetRow(),
         ],
       ),
     );
   }
 
-  Widget _buildFoldersCard() {
+  Widget _presetRow() {
+    final current = ref.watch(cleaningPresetProvider);
+    final palette = context.appColors;
+    Widget chip(CleaningPreset preset) {
+      final selected = current == preset;
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _applyPreset(preset),
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppTheme.primary.withValues(alpha: 0.10)
+                  : palette.cardBackground,
+              border: Border.all(
+                color: selected
+                    ? AppTheme.primary.withValues(alpha: 0.32)
+                    : palette.cardBorder,
+              ),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              preset.label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: selected ? AppTheme.primaryDark : palette.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        Text(
+          'Preset:',
+          style: TextStyle(
+            fontSize: 11,
+            color: palette.textMuted,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              chip(CleaningPreset.light),
+              chip(CleaningPreset.standard),
+              chip(CleaningPreset.deep),
+              chip(CleaningPreset.custom),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFolderPills() {
     final folderIcons = <String, IconData>{
       'Downloads': Icons.download_outlined,
       'Documents': Icons.description_outlined,
@@ -502,209 +834,306 @@ class _ModernSystemCleanerScreenState
       'Videos': Icons.movie_outlined,
       '3D Objects': Icons.view_in_ar_outlined,
     };
-    final tints = <List<Color>>[
-      [AppTheme.pillBlue, AppTheme.pillBlueText],
-      [AppTheme.pillGreen, AppTheme.pillGreenText],
-      [AppTheme.pillPink, AppTheme.pillPinkText],
-      [AppTheme.pillPurple, AppTheme.pillPurpleText],
-      [AppTheme.pillTeal, AppTheme.pillTealText],
-      [AppTheme.pillAmber, AppTheme.pillAmberText],
-    ];
-
     final infoMap = {for (final f in _folderInfos) f.name: f};
-    return ModernCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ModernSectionHeader(
-            icon: Icons.folder_open,
-            title: 'System Folders',
-            subtitle: 'Bersihkan isi folder pengguna terpilih',
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (final name in _folderSelected.keys)
+          ModernSelectablePill(
+            icon: folderIcons[name] ?? Icons.folder,
+            label: name,
+            trailingText: infoMap[name]?.size ?? 'Not found',
+            selected: _folderSelected[name] ?? false,
+            onTap: () => setState(() {
+              _folderSelected[name] = !(_folderSelected[name] ?? false);
+            }),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (var i = 0; i < _folderSelected.length; i++)
-                ModernSelectablePill(
-                  icon: folderIcons[_folderSelected.keys.elementAt(i)] ??
-                      Icons.folder,
-                  label: _folderSelected.keys.elementAt(i),
-                  trailingText: infoMap[_folderSelected.keys.elementAt(i)]
-                      ?.size,
-                  tint: tints[i % tints.length][0],
-                  tintText: tints[i % tints.length][1],
-                  selected:
-                      _folderSelected[_folderSelected.keys.elementAt(i)] ??
-                          false,
-                  onTap: () => setState(() {
-                    final k = _folderSelected.keys.elementAt(i);
-                    _folderSelected[k] = !(_folderSelected[k] ?? false);
-                  }),
-                ),
-            ],
-          ),
-        ],
-      ),
+      ],
     );
   }
 
   Widget _buildStorageRamCard() {
+    final palette = context.appColors;
     final ramTotalGb = _formatBytes(
       ((_ramInfo['totalMemoryBytes'] as num?)?.toInt() ?? 0),
     );
     return ModernCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ModernSectionHeader(
-            icon: Icons.storage_rounded,
-            title: 'Storage & RAM Info',
-            subtitle: 'Ringkasan disk fisik dan kapasitas RAM',
-          ),
-          const SizedBox(height: 12),
-          if (_diskInfo.isEmpty && _ramInfo.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                'Memuat info perangkat keras...',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-              ),
-            )
-          else ...[
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final disk in _diskInfo) _diskTile(disk),
-                _ramTile(ramTotalGb),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _diskTile(Map<String, dynamic> disk) {
-    final name = (disk['model'] ?? disk['friendlyName'] ?? 'Disk').toString();
-    final type = (disk['mediaType'] ?? disk['type'] ?? '').toString();
-    final size = (disk['sizeFormatted'] ??
-            disk['size']?.toString() ??
-            disk['capacity']?.toString() ??
-            '')
-        .toString();
-    final health = (disk['healthStatus'] ?? '').toString();
-    final temp = (disk['temperature'] ?? '').toString();
-    final isSsd = type.toLowerCase().contains('ssd');
-    final ok = health.toLowerCase().contains('ok') ||
-        health.toLowerCase().contains('healthy') ||
-        health.isEmpty;
-    return Container(
-      width: 270,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.pillBlue,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Icon(
-                isSsd ? Icons.bolt : Icons.album,
-                size: 16,
-                color: AppTheme.pillBlueText,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                    color: AppTheme.pillBlueText,
-                  ),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.storage_rounded,
+                  color: AppTheme.primary,
+                  size: 22,
                 ),
               ),
-              ModernBadge(
-                text: ok ? 'Sehat' : 'Periksa',
-                background: ok ? AppTheme.pillGreen : AppTheme.pillRed,
-                foreground: ok ? AppTheme.pillGreenText : AppTheme.pillRedText,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Storage & RAM Info',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Pantau kapasitas dan kesehatan perangkat.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Refresh',
+                onPressed: _isChecking ? null : _checkAll,
+                icon: const Icon(Icons.refresh, size: 18),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Tipe: ${type.isEmpty ? "-" : type} • $size',
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-          if (temp.isNotEmpty)
-            Text(
-              'Suhu: $temp',
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppTheme.textSecondary,
+          const SizedBox(height: 12),
+          if (_diskInfo.isEmpty && _ramInfo.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'Memuat info perangkat keras...',
+                style: TextStyle(
+                  color: palette.textSecondary,
+                  fontSize: 12,
+                ),
               ),
-            ),
+            )
+          else ...[
+            _ramTile(ramTotalGb),
+            for (final disk in _diskInfo) ...[
+              const SizedBox(height: 10),
+              _diskTile(disk),
+            ],
+          ],
         ],
       ),
     );
   }
 
   Widget _ramTile(String ramTotal) {
-    final ramGb = ((_ramInfo['totalMemoryBytes'] as num?)?.toDouble() ?? 0) /
+    final palette = context.appColors;
+    final ramGb =
+        ((_ramInfo['totalMemoryBytes'] as num?)?.toDouble() ?? 0) /
         (1024 * 1024 * 1024);
-    final warn = ramGb < 8;
+    final warn = ramGb > 0 && ramGb < 8;
+
+    final bg = warn
+        ? AppTheme.danger.withValues(alpha: 0.10)
+        : palette.cardBackground;
+    final borderColor = warn
+        ? AppTheme.danger.withValues(alpha: 0.30)
+        : palette.cardBorder;
+
     return Container(
-      width: 220,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: warn ? AppTheme.pillRed : AppTheme.pillGreen,
+        color: bg,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: warn
+                  ? AppTheme.danger.withValues(alpha: 0.18)
+                  : AppTheme.primary.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.memory_rounded,
+              size: 20,
+              color: warn ? AppTheme.danger : AppTheme.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'RAM Total',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: palette.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  ramTotal.startsWith('0 ') ? '—' : ramTotal,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: palette.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (warn)
+            const ModernBadge.tone(
+              tone: PillTone.danger,
+              text: 'RAM rendah',
+              icon: Icons.warning_amber_rounded,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _diskTile(Map<String, dynamic> disk) {
+    final palette = context.appColors;
+    final name = (disk['model'] ?? disk['friendlyName'] ?? 'Disk').toString();
+    final type = (disk['mediaType'] ?? disk['type'] ?? '').toString();
+    final size =
+        (disk['sizeFormatted'] ??
+                disk['size']?.toString() ??
+                disk['capacity']?.toString() ??
+                '')
+            .toString();
+    final health = (disk['healthStatus'] ?? '').toString();
+    final temp = (disk['temperature'] ?? '').toString();
+    final isSsd = type.toLowerCase().contains('ssd');
+    final ok =
+        health.toLowerCase().contains('ok') ||
+        health.toLowerCase().contains('healthy') ||
+        health.isEmpty;
+
+    final bg = ok
+        ? palette.cardBackground
+        : AppTheme.danger.withValues(alpha: 0.10);
+    final borderColor = ok
+        ? palette.cardBorder
+        : AppTheme.danger.withValues(alpha: 0.30);
+    final iconBubbleBg = ok
+        ? AppTheme.primary.withValues(alpha: 0.18)
+        : AppTheme.danger.withValues(alpha: 0.18);
+    final iconColor = ok ? AppTheme.primary : AppTheme.danger;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.memory,
-                size: 16,
-                color: warn ? AppTheme.pillRedText : AppTheme.pillGreenText,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'RAM Total',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                  color: warn ? AppTheme.pillRedText : AppTheme.pillGreenText,
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconBubbleBg,
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                alignment: Alignment.center,
+                child: Icon(
+                  isSsd ? Icons.bolt : Icons.album,
+                  size: 20,
+                  color: iconColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isSsd ? 'SSD' : 'Disk',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ModernBadge.tone(
+                tone: ok ? PillTone.success : PillTone.danger,
+                text: ok ? 'Bagus' : 'Periksa',
+                icon: ok
+                    ? Icons.check_circle_outline
+                    : Icons.warning_amber_rounded,
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            ramTotal.isEmpty ? '—' : ramTotal,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: warn ? AppTheme.pillRedText : AppTheme.pillGreenText,
-            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(Icons.sd_storage_outlined,
+                  size: 14, color: palette.textSecondary),
+              const SizedBox(width: 4),
+              Text(
+                'Capacity ${size.isEmpty ? "-" : size}',
+                style:
+                    TextStyle(fontSize: 12, color: palette.textSecondary),
+              ),
+              if (temp.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                Icon(Icons.device_thermostat_outlined,
+                    size: 14, color: palette.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  temp,
+                  style:
+                      TextStyle(fontSize: 12, color: palette.textSecondary),
+                ),
+              ],
+            ],
           ),
-          Text(
-            warn ? 'RAM rendah, pertimbangkan upgrade' : 'Kapasitas memadai',
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppTheme.textSecondary,
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: 1.0,
+              minHeight: 6,
+              backgroundColor: palette.surfaceMuted,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                ok ? AppTheme.success : AppTheme.danger,
+              ),
             ),
           ),
         ],
@@ -712,247 +1141,385 @@ class _ModernSystemCleanerScreenState
     );
   }
 
-  // ---- Right column ----
+  // ---------- RIGHT COLUMN ----------
   Widget _buildRightColumn() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _buildBatteryCard(),
+        const SizedBox(height: 14),
         _buildSecurityCard(),
         const SizedBox(height: 14),
         _buildRecentCard(),
         const SizedBox(height: 14),
-        _buildQuickTestCard(),
+        _buildQuickTestGrid(),
       ],
     );
   }
 
-  Widget _buildSecurityCard() {
-    Widget statusRow({
-      required IconData icon,
-      required Color iconColor,
-      required Color iconBg,
-      required String title,
-      required SystemStatus status,
-      Widget? action,
-    }) {
-      final isActive = status.isActive;
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              alignment: Alignment.center,
-              child: Icon(icon, size: 16, color: iconColor),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    status.status,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            ModernBadge(
-              text: isActive ? 'Aktif' : 'Periksa',
-              background: isActive ? AppTheme.pillGreen : AppTheme.pillAmber,
-              foreground:
-                  isActive ? AppTheme.pillGreenText : AppTheme.pillAmberText,
-            ),
-            if (action != null) ...[const SizedBox(width: 6), action],
-          ],
-        ),
-      );
-    }
+  Widget _buildBatteryCard() {
+    final palette = context.appColors;
+    final hasBattery = _batteryStatus.isPresent;
+    final percentStr =
+        hasBattery ? '${_batteryStatus.chargeLevel}%' : '—';
+    final cond = _batteryStatus.healthStatus.isEmpty
+        ? 'Unknown'
+        : _batteryStatus.healthStatus;
 
+    return ModernCard(
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppTheme.success.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.battery_charging_full_rounded,
+              color: AppTheme.success,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Battery Health',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: palette.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      hasBattery ? percentStr : 'Tidak ada baterai',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                    if (hasBattery) ...[
+                      Text(
+                        '  •  ',
+                        style: TextStyle(
+                            fontSize: 12, color: palette.textMuted),
+                      ),
+                      Text(
+                        cond,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _batteryHealthColor(
+                            _batteryStatus.batteryHealth,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _isChecking ? null : _checkAll,
+            icon: const Icon(Icons.refresh, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Map a battery health percentage (0-100, where 100 = full design capacity)
+  // to a semantic colour. >=80 is healthy, 40-79 is degraded but usable, <40
+  // is critical. We treat unknown / 0 as unknown (neutral) so we don't flash
+  // a "critical" red on platforms that can't probe the battery.
+  Color _batteryHealthColor(double health) {
+    if (health <= 0) return context.appColors.textSecondary;
+    if (health >= 80) return AppTheme.success;
+    if (health >= 40) return AppTheme.warning;
+    return AppTheme.danger;
+  }
+
+  Widget _buildSecurityCard() {
     return ModernCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const ModernSectionHeader(
-            icon: Icons.shield_outlined,
-            title: 'Keamanan & Aktivasi',
-            subtitle: 'Status Defender, Update, dan aktivasi',
-          ),
-          const SizedBox(height: 6),
-          statusRow(
-            icon: Icons.shield_rounded,
-            iconColor: AppTheme.pillGreenText,
-            iconBg: AppTheme.pillGreen,
+          _statusBlock(
             title: 'Windows Defender',
-            status: _defenderStatus,
-          ),
-          const Divider(),
-          statusRow(
-            icon: Icons.system_update_alt,
-            iconColor: AppTheme.pillBlueText,
-            iconBg: AppTheme.pillBlue,
-            title: 'Windows Update',
-            status: _updateStatus,
-            action: TextButton(
+            detail: _defenderStatus.status.isEmpty
+                ? 'Memeriksa...'
+                : _defenderStatus.status,
+            isActive: _defenderStatus.isActive,
+            trailing: TextButton(
               onPressed: () => SystemService.openWindowsUpdateSettings(),
-              child: const Text('Buka', style: TextStyle(fontSize: 11)),
+              child:
+                  const Text('Buka Security', style: TextStyle(fontSize: 11)),
             ),
           ),
-          const Divider(),
-          statusRow(
-            icon: Icons.workspace_premium,
-            iconColor: AppTheme.pillPurpleText,
-            iconBg: AppTheme.pillPurple,
-            title: 'Aktivasi Windows',
-            status: _winActStatus,
-            action: TextButton(
+          const SizedBox(height: 12),
+          _statusBlock(
+            title: 'Windows Activation',
+            detail: _winActStatus.status.isEmpty
+                ? 'Memeriksa...'
+                : _winActStatus.status,
+            isActive: _winActStatus.isActive,
+            trailing: TextButton(
               onPressed: () async {
                 final ok = await SystemService.openActivationPowerShell();
-                _setStatus(
-                  ok ? 'PowerShell Aktivasi dibuka' : 'Gagal membuka PowerShell',
-                );
+                _setStatus(ok
+                    ? 'PowerShell Aktivasi dibuka'
+                    : 'Gagal membuka PowerShell');
               },
-              child: const Text('Aktivasi', style: TextStyle(fontSize: 11)),
+              child: const Text('Shell', style: TextStyle(fontSize: 11)),
             ),
           ),
-          const Divider(),
-          statusRow(
-            icon: Icons.business_center_outlined,
-            iconColor: AppTheme.pillTealText,
-            iconBg: AppTheme.pillTeal,
-            title: 'Aktivasi Office',
-            status: _officeActStatus,
-            action: TextButton(
+          const SizedBox(height: 12),
+          _statusBlock(
+            title: 'Office Activation',
+            detail: _officeActStatus.status.isEmpty
+                ? 'Memeriksa...'
+                : _officeActStatus.status,
+            isActive: _officeActStatus.isActive,
+            trailing: ElevatedButton(
               onPressed: () async {
                 final ok = await SystemService.openActivationPowerShell();
-                _setStatus(
-                  ok ? 'PowerShell Aktivasi dibuka' : 'Gagal membuka PowerShell',
-                );
+                _setStatus(ok
+                    ? 'PowerShell Aktivasi dibuka'
+                    : 'Gagal membuka PowerShell');
               },
-              child: const Text('Aktivasi', style: TextStyle(fontSize: 11)),
+              style: ElevatedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                textStyle: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              child: const Text('Activate'),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _statusBlock({
+    required String title,
+    required String detail,
+    required bool isActive,
+    Widget? trailing,
+  }) {
+    final palette = context.appColors;
+    final accent = isActive ? AppTheme.success : AppTheme.danger;
+    final fgText =
+        isActive ? AppTheme.pillGreenText : AppTheme.pillRedText;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: palette.textPrimary,
+                ),
+              ),
+            ),
+            if (trailing != null) trailing,
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: accent.withValues(alpha: 0.30)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isActive ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                size: 16,
+                color: accent,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  detail,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: fgText,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildRecentCard() {
+    final palette = context.appColors;
     return ModernCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const ModernSectionHeader(
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.auto_awesome_outlined,
+                  size: 18,
+                  color: AppTheme.primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Recent Semua Aplikasi',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: palette.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ModernSelectablePill(
             icon: Icons.history,
-            title: 'Recent & Recycle Bin',
-            subtitle: 'Hapus item yang baru dibuka & isi tempat sampah',
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              ModernSelectablePill(
-                icon: Icons.history_toggle_off,
-                label: 'Hapus Recent',
-                tint: AppTheme.pillBlue,
-                tintText: AppTheme.pillBlueText,
-                selected: _clearRecentSelected,
-                onTap: () => setState(
-                  () => _clearRecentSelected = !_clearRecentSelected,
-                ),
-              ),
-              ModernSelectablePill(
-                icon: Icons.delete_outline,
-                label: 'Kosongkan Bin',
-                tint: AppTheme.pillRed,
-                tintText: AppTheme.pillRedText,
-                selected: _clearRecycleBinSelected,
-                onTap: () => setState(
-                  () => _clearRecycleBinSelected = !_clearRecycleBinSelected,
-                ),
-              ),
-            ],
+            label: 'Hapus Recent Semua Aplikasi',
+            trailingText: 'Jump List, Recent, Search',
+            selected: _clearRecentSelected,
+            onTap: () => setState(
+              () => _clearRecentSelected = !_clearRecentSelected,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickTestCard() {
-    return ModernCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const ModernSectionHeader(
-            icon: Icons.science_outlined,
-            title: 'Tes Cepat',
-            subtitle: 'Tes hardware tanpa pindah halaman',
+  Widget _buildQuickTestGrid() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GridView.count(
+          crossAxisCount: 2,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 3.4,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _quickTestPill(
+              icon: Icons.volume_up_rounded,
+              label: 'Test Sound',
+              tone: PillTone.primary,
+              onTap: () => _openTest(const SoundTestLR()),
+            ),
+            _quickTestPill(
+              icon: Icons.keyboard_alt_rounded,
+              label: 'Test Keyboard',
+              tone: PillTone.success,
+              onTap: () => _openTest(const KeyboardTestCompleteFixed()),
+            ),
+            _quickTestPill(
+              icon: Icons.photo_camera_outlined,
+              label: 'Test Kamera',
+              tone: PillTone.primary,
+              onTap: () => _openTest(const WebcamTest()),
+            ),
+            _quickTestPill(
+              icon: Icons.mic_rounded,
+              label: 'Test Mic',
+              tone: PillTone.success,
+              onTap: () => _openTest(const MicrophoneTest()),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ModernSelectablePill(
+          icon: Icons.delete_outline,
+          label: 'Kosongkan Bin',
+          selected: _clearRecycleBinSelected,
+          onTap: () => setState(
+            () => _clearRecycleBinSelected = !_clearRecycleBinSelected,
           ),
-          const SizedBox(height: 10),
-          GridView.count(
-            crossAxisCount: 2,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 3.4,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              ModernActionPill(
-                icon: Icons.volume_up,
-                label: 'Test Sound',
-                tint: AppTheme.pillBlue,
-                tintText: AppTheme.pillBlueText,
-                onTap: () => _openTest(const SoundTestLR()),
-              ),
-              ModernActionPill(
-                icon: Icons.keyboard_alt_outlined,
-                label: 'Test Keyboard',
-                tint: AppTheme.pillGreen,
-                tintText: AppTheme.pillGreenText,
-                onTap: () => _openTest(const KeyboardTestCompleteFixed()),
-              ),
-              ModernActionPill(
-                icon: Icons.mic_none_outlined,
-                label: 'Test Mic',
-                tint: AppTheme.pillPurple,
-                tintText: AppTheme.pillPurpleText,
-                onTap: () => _openTest(const MicrophoneTest()),
-              ),
-              ModernActionPill(
-                icon: Icons.videocam_outlined,
-                label: 'Test Kamera',
-                tint: AppTheme.pillPink,
-                tintText: AppTheme.pillPinkText,
-                onTap: () => _openTest(const WebcamTest()),
-              ),
-            ],
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  @override
-  void dispose() {
-    super.dispose();
+  Widget _quickTestPill({
+    required IconData icon,
+    required String label,
+    required PillTone tone,
+    required VoidCallback onTap,
+  }) {
+    final accent =
+        tone == PillTone.success ? AppTheme.success : AppTheme.primary;
+    final bg = accent.withValues(alpha: 0.12);
+    final borderColor = accent.withValues(alpha: 0.30);
+    final fg = tone == PillTone.success
+        ? AppTheme.pillGreenText
+        : AppTheme.primaryDark;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: fg),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: fg,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

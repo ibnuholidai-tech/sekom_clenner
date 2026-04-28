@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/system_service.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/modern/modern_card.dart';
 import '../../widgets/modern/modern_pill.dart';
@@ -95,7 +96,8 @@ class _ModernInfoSystemScreenState
     return '${size.toStringAsFixed(size < 10 ? 2 : 1)} ${units[unit]}';
   }
 
-  Widget _kv(String k, String v, {IconData? icon, Color? tint}) {
+  Widget _kv(String k, String v, {IconData? icon}) {
+    final palette = context.appColors;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -105,11 +107,16 @@ class _ModernInfoSystemScreenState
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              color: (tint ?? AppTheme.primary).withValues(alpha: 0.12),
+              color: palette.surfaceMuted,
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: palette.surfaceMutedBorder),
             ),
             alignment: Alignment.center,
-            child: Icon(icon ?? Icons.info_outline, size: 16, color: tint),
+            child: Icon(
+              icon ?? Icons.info_outline,
+              size: 16,
+              color: palette.textSecondary,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -118,18 +125,18 @@ class _ModernInfoSystemScreenState
               children: [
                 Text(
                   k,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: AppTheme.textSecondary,
+                    color: palette.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 SelectableText(
                   v.isEmpty ? '—' : v,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    color: palette.textPrimary,
                   ),
                 ),
               ],
@@ -179,6 +186,7 @@ class _ModernInfoSystemScreenState
   }
 
   Widget _header() {
+    final palette = context.appColors;
     return ModernCard(
       child: Row(
         children: [
@@ -186,17 +194,20 @@ class _ModernInfoSystemScreenState
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppTheme.pillTeal,
+              color: AppTheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.primary.withValues(alpha: 0.25),
+              ),
             ),
             alignment: Alignment.center,
             child: const Icon(
               Icons.dns_outlined,
-              color: AppTheme.pillTealText,
+              color: AppTheme.primary,
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -205,14 +216,16 @@ class _ModernInfoSystemScreenState
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
+                    color: palette.textPrimary,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   'Detail OS, hardware, dan jaringan',
-                  style:
-                      TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: palette.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -234,8 +247,6 @@ class _ModernInfoSystemScreenState
         children: [
           const ModernSectionHeader(
             icon: Icons.computer,
-            iconColor: AppTheme.pillBlueText,
-            iconBackground: AppTheme.pillBlue,
             title: 'Sistem Operasi',
             subtitle: 'Identitas mesin dan akun',
           ),
@@ -244,30 +255,24 @@ class _ModernInfoSystemScreenState
             'Operating System',
             '${Platform.operatingSystem.toUpperCase()} ${_osVersion.isEmpty ? "" : "• $_osVersion"}',
             icon: Icons.desktop_windows_outlined,
-            tint: AppTheme.pillBlueText,
           ),
           _kv(
             'Hostname',
             _hostName,
             icon: Icons.dns_outlined,
-            tint: AppTheme.pillPurpleText,
           ),
           _kv(
             'User',
             _userName,
             icon: Icons.person_outline,
-            tint: AppTheme.pillGreenText,
           ),
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Row(
               children: [
-                ModernBadge(
+                ModernBadge.tone(
+                  tone: _elevated ? PillTone.success : PillTone.warning,
                   text: _elevated ? 'Administrator' : 'Standard User',
-                  background: _elevated ? AppTheme.pillGreen : AppTheme.pillAmber,
-                  foreground: _elevated
-                      ? AppTheme.pillGreenText
-                      : AppTheme.pillAmberText,
                   icon: _elevated ? Icons.admin_panel_settings : Icons.lock_open,
                 ),
                 const SizedBox(width: 8),
@@ -285,55 +290,56 @@ class _ModernInfoSystemScreenState
   }
 
   Widget _hardwareCard() {
+    final palette = context.appColors;
     final ramTotal =
         ((_ram['totalMemoryBytes'] as num?)?.toInt() ?? 0);
     final ramFree = ((_ram['availableMemoryBytes'] as num?)?.toInt() ?? 0);
     final used = ramTotal - ramFree;
     final usedPct =
         ramTotal > 0 ? (used / ramTotal).clamp(0.0, 1.0) : 0.0;
+    final barColor = usedPct > 0.85
+        ? AppTheme.danger
+        : (usedPct > 0.6 ? AppTheme.warning : AppTheme.primary);
     return ModernCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const ModernSectionHeader(
             icon: Icons.memory,
-            iconColor: AppTheme.pillPurpleText,
-            iconBackground: AppTheme.pillPurple,
             title: 'Hardware',
             subtitle: 'Memori dan disk fisik',
           ),
           const SizedBox(height: 10),
-          // RAM bar
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.pillPurple,
+              color: palette.surfaceMuted,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: palette.surfaceMutedBorder),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.memory,
-                        size: 16, color: AppTheme.pillPurpleText),
+                    Icon(Icons.memory, size: 16, color: palette.textSecondary),
                     const SizedBox(width: 6),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'RAM',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 12,
-                          color: AppTheme.pillPurpleText,
+                          color: palette.textPrimary,
                         ),
                       ),
                     ),
                     Text(
                       '${_formatBytes(used)} / ${_formatBytes(ramTotal)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.pillPurpleText,
+                        color: palette.textPrimary,
                       ),
                     ),
                   ],
@@ -344,14 +350,8 @@ class _ModernInfoSystemScreenState
                   child: LinearProgressIndicator(
                     value: usedPct,
                     minHeight: 8,
-                    backgroundColor: Colors.white,
-                    valueColor: AlwaysStoppedAnimation(
-                      usedPct > 0.85
-                          ? AppTheme.danger
-                          : (usedPct > 0.6
-                              ? AppTheme.warning
-                              : AppTheme.pillPurpleText),
-                    ),
+                    backgroundColor: palette.cardBorder,
+                    valueColor: AlwaysStoppedAnimation(barColor),
                   ),
                 ),
               ],
@@ -359,9 +359,9 @@ class _ModernInfoSystemScreenState
           ),
           const SizedBox(height: 12),
           if (_disks.isEmpty)
-            const Text(
+            Text(
               'Tidak ada info disk fisik.',
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              style: TextStyle(fontSize: 12, color: palette.textSecondary),
             )
           else
             Wrap(
@@ -378,6 +378,7 @@ class _ModernInfoSystemScreenState
   }
 
   Widget _diskTile(Map<String, dynamic> disk) {
+    final palette = context.appColors;
     final name =
         (disk['model'] ?? disk['friendlyName'] ?? 'Disk').toString();
     final type = (disk['mediaType'] ?? disk['type'] ?? '').toString();
@@ -394,42 +395,39 @@ class _ModernInfoSystemScreenState
       width: 320,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.pillBlue,
+        color: palette.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.surfaceMutedBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.album,
-                  size: 16, color: AppTheme.pillBlueText),
+              Icon(Icons.album, size: 16, color: palette.textSecondary),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
-                    color: AppTheme.pillBlueText,
+                    color: palette.textPrimary,
                   ),
                 ),
               ),
-              ModernBadge(
+              ModernBadge.tone(
+                tone: ok ? PillTone.success : PillTone.warning,
                 text: ok ? 'OK' : 'Periksa',
-                background: ok ? AppTheme.pillGreen : AppTheme.pillRed,
-                foreground:
-                    ok ? AppTheme.pillGreenText : AppTheme.pillRedText,
               ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
             'Tipe: ${type.isEmpty ? "-" : type} • $size',
-            style:
-                const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+            style: TextStyle(fontSize: 11, color: palette.textSecondary),
           ),
         ],
       ),
@@ -443,8 +441,6 @@ class _ModernInfoSystemScreenState
         children: [
           const ModernSectionHeader(
             icon: Icons.network_wifi,
-            iconColor: AppTheme.pillTealText,
-            iconBackground: AppTheme.pillTeal,
             title: 'Jaringan',
             subtitle: 'Antarmuka dan alamat IP',
           ),
@@ -453,7 +449,6 @@ class _ModernInfoSystemScreenState
             'IP Addresses',
             _ipAddresses,
             icon: Icons.lan_outlined,
-            tint: AppTheme.pillTealText,
           ),
           const SizedBox(height: 4),
           Wrap(
@@ -463,15 +458,11 @@ class _ModernInfoSystemScreenState
               ModernActionPill(
                 icon: Icons.network_check,
                 label: 'Network Settings',
-                tint: AppTheme.pillBlue,
-                tintText: AppTheme.pillBlueText,
                 onTap: () => SystemService.openNetworkConnections(),
               ),
               ModernActionPill(
                 icon: Icons.shield_outlined,
                 label: 'Firewall',
-                tint: AppTheme.pillRed,
-                tintText: AppTheme.pillRedText,
                 onTap: () => SystemService.openFirewall(),
               ),
             ],

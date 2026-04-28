@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/theme_provider.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../widgets/modern/settings_dialog.dart';
+import '../widgets/modern/update_banner.dart';
 import 'modern/modern_system_cleaner_screen.dart';
 import 'modern/modern_battery_screen.dart';
 import 'modern/modern_optimization_screen.dart';
@@ -28,48 +32,13 @@ class _ModernMainScreenState extends ConsumerState<ModernMainScreen> {
   bool _railExpanded = true;
 
   static const List<_NavItem> _items = [
-    _NavItem(
-      icon: Icons.cleaning_services_outlined,
-      label: 'System Cleaner',
-      tint: Color(0xFFE6EFFC),
-      activeTint: AppTheme.primary,
-    ),
-    _NavItem(
-      icon: Icons.delete_sweep_outlined,
-      label: 'Shortcut',
-      tint: Color(0xFFFCE7EE),
-      activeTint: Color(0xFFB8336A),
-    ),
-    _NavItem(
-      icon: Icons.battery_charging_full_outlined,
-      label: 'Battery Health',
-      tint: Color(0xFFE3F4E5),
-      activeTint: Color(0xFF1B7A3B),
-    ),
-    _NavItem(
-      icon: Icons.auto_awesome_outlined,
-      label: 'Optimization',
-      tint: Color(0xFFEFE9FB),
-      activeTint: Color(0xFF6D49C1),
-    ),
-    _NavItem(
-      icon: Icons.info_outline,
-      label: 'Info System',
-      tint: Color(0xFFE0F4F1),
-      activeTint: Color(0xFF0E7C6C),
-    ),
-    _NavItem(
-      icon: Icons.science_outlined,
-      label: 'Testing',
-      tint: Color(0xFFFCEFD9),
-      activeTint: Color(0xFFB7791F),
-    ),
-    _NavItem(
-      icon: Icons.refresh,
-      label: 'Reset',
-      tint: Color(0xFFFCE6E6),
-      activeTint: Color(0xFFB91C1C),
-    ),
+    _NavItem(icon: Icons.cleaning_services_outlined, label: 'System Cleaner'),
+    _NavItem(icon: Icons.delete_sweep_outlined, label: 'Shortcut'),
+    _NavItem(icon: Icons.battery_charging_full_outlined, label: 'Battery Health'),
+    _NavItem(icon: Icons.auto_awesome_outlined, label: 'Optimization'),
+    _NavItem(icon: Icons.info_outline, label: 'Info System'),
+    _NavItem(icon: Icons.science_outlined, label: 'Testing'),
+    _NavItem(icon: Icons.refresh, label: 'Reset'),
   ];
 
   Widget _buildBody() {
@@ -96,8 +65,9 @@ class _ModernMainScreenState extends ConsumerState<ModernMainScreen> {
   @override
   Widget build(BuildContext context) {
     final statusMessage = ref.watch(statusMessageProvider);
+    final palette = context.appColors;
     return Scaffold(
-      backgroundColor: AppTheme.pageBackground,
+      backgroundColor: palette.pageBackground,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -107,13 +77,16 @@ class _ModernMainScreenState extends ConsumerState<ModernMainScreen> {
               selectedIndex: _selectedIndex,
               expanded: _railExpanded,
               onSelected: (i) => setState(() => _selectedIndex = i),
-              onToggle: () =>
-                  setState(() => _railExpanded = !_railExpanded),
+              onToggle: () => setState(() => _railExpanded = !_railExpanded),
+              onOpenSettings: () => SettingsDialog.show(context),
+              onCycleTheme: () => ref.read(themeModeProvider.notifier).cycle(),
+              themeMode: ref.watch(themeModeProvider),
             ),
             Expanded(
               child: Column(
                 children: [
                   Expanded(child: _buildBody()),
+                  const UpdateBanner(),
                   _StatusBar(message: statusMessage),
                 ],
               ),
@@ -128,14 +101,10 @@ class _ModernMainScreenState extends ConsumerState<ModernMainScreen> {
 class _NavItem {
   final IconData icon;
   final String label;
-  final Color tint;
-  final Color activeTint;
 
   const _NavItem({
     required this.icon,
     required this.label,
-    required this.tint,
-    required this.activeTint,
   });
 }
 
@@ -145,6 +114,9 @@ class _Sidebar extends StatelessWidget {
   final bool expanded;
   final ValueChanged<int> onSelected;
   final VoidCallback onToggle;
+  final VoidCallback onOpenSettings;
+  final VoidCallback onCycleTheme;
+  final ThemeMode themeMode;
 
   const _Sidebar({
     required this.items,
@@ -152,25 +124,32 @@ class _Sidebar extends StatelessWidget {
     required this.expanded,
     required this.onSelected,
     required this.onToggle,
+    required this.onOpenSettings,
+    required this.onCycleTheme,
+    required this.themeMode,
   });
 
   @override
   Widget build(BuildContext context) {
     final width = expanded ? 230.0 : 78.0;
+    final palette = context.appColors;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       width: width,
-      decoration: const BoxDecoration(
-        color: AppTheme.sidebar,
-        border: Border(
-          right: BorderSide(color: AppTheme.cardBorder, width: 1),
-        ),
+      decoration: BoxDecoration(
+        color: palette.sidebar,
+        border: Border(right: BorderSide(color: palette.cardBorder, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SidebarHeader(expanded: expanded),
+          _SidebarHeader(
+            expanded: expanded,
+            onOpenSettings: onOpenSettings,
+            onCycleTheme: onCycleTheme,
+            themeMode: themeMode,
+          ),
           const SizedBox(height: 8),
           Expanded(
             child: ListView.builder(
@@ -195,23 +174,51 @@ class _Sidebar extends StatelessWidget {
 
 class _SidebarHeader extends StatelessWidget {
   final bool expanded;
-  const _SidebarHeader({required this.expanded});
+  final VoidCallback onOpenSettings;
+  final VoidCallback onCycleTheme;
+  final ThemeMode themeMode;
+
+  const _SidebarHeader({
+    required this.expanded,
+    required this.onOpenSettings,
+    required this.onCycleTheme,
+    required this.themeMode,
+  });
+
+  IconData get _themeIcon {
+    switch (themeMode) {
+      case ThemeMode.light:
+        return Icons.light_mode_outlined;
+      case ThemeMode.dark:
+        return Icons.dark_mode_outlined;
+      case ThemeMode.system:
+        return Icons.brightness_auto;
+    }
+  }
+
+  String get _themeTooltip {
+    switch (themeMode) {
+      case ThemeMode.light:
+        return 'Tema: Terang (klik untuk ubah)';
+      case ThemeMode.dark:
+        return 'Tema: Gelap (klik untuk ubah)';
+      case ThemeMode.system:
+        return 'Tema: Sistem (klik untuk ubah)';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appColors;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+      padding: const EdgeInsets.fromLTRB(16, 18, 12, 14),
       child: Row(
         children: [
           Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.primary, AppTheme.accent],
-              ),
+              color: AppTheme.primary,
               borderRadius: BorderRadius.circular(10),
             ),
             alignment: Alignment.center,
@@ -227,25 +234,43 @@ class _SidebarHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Text(
                     'Settings',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
+                      color: palette.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
                     'Pintasan & tools',
                     style: TextStyle(
                       fontSize: 11,
-                      color: AppTheme.textSecondary,
+                      color: palette.textSecondary,
                     ),
                   ),
                 ],
               ),
+            ),
+            IconButton(
+              tooltip: _themeTooltip,
+              icon: Icon(_themeIcon, size: 18, color: palette.textSecondary),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              onPressed: onCycleTheme,
+            ),
+            IconButton(
+              tooltip: 'Pengaturan',
+              icon: Icon(
+                Icons.settings_outlined,
+                size: 18,
+                color: palette.textSecondary,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              onPressed: onOpenSettings,
             ),
           ],
         ],
@@ -269,9 +294,19 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? item.activeTint : Colors.transparent;
-    final iconColor = selected ? Colors.white : item.activeTint;
-    final fg = selected ? Colors.white : AppTheme.textPrimary;
+    final palette = context.appColors;
+    final bg = selected
+        ? AppTheme.primary.withValues(alpha: 0.10)
+        : Colors.transparent;
+    final iconBubbleBg = selected
+        ? AppTheme.primary.withValues(alpha: 0.18)
+        : palette.surfaceMuted;
+    final iconColor =
+        selected ? AppTheme.primary : palette.textSecondary;
+    final fg = selected ? AppTheme.primaryDark : palette.textPrimary;
+    final borderColor = selected
+        ? AppTheme.primary.withValues(alpha: 0.30)
+        : Colors.transparent;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -283,25 +318,22 @@ class _SidebarItem extends StatelessWidget {
           child: Tooltip(
             message: expanded ? '' : item.label,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               decoration: BoxDecoration(
                 color: bg,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor),
               ),
               child: Row(
-                mainAxisAlignment:
-                    expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+                mainAxisAlignment: expanded
+                    ? MainAxisAlignment.start
+                    : MainAxisAlignment.center,
                 children: [
                   Container(
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: selected
-                          ? Colors.white.withValues(alpha: 0.18)
-                          : item.tint,
+                      color: iconBubbleBg,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     alignment: Alignment.center,
@@ -338,10 +370,11 @@ class _SidebarFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appColors;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 8, 8, 12),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppTheme.cardBorder)),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: palette.cardBorder)),
       ),
       child: Row(
         children: [
@@ -364,13 +397,13 @@ class _SidebarFooter extends StatelessWidget {
           ),
           if (expanded) ...[
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
                 'by Ibnu',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textSecondary,
+                  color: palette.textSecondary,
                 ),
               ),
             ),
@@ -381,7 +414,7 @@ class _SidebarFooter extends StatelessWidget {
             icon: Icon(
               expanded ? Icons.chevron_left : Icons.chevron_right,
               size: 18,
-              color: AppTheme.textSecondary,
+              color: palette.textSecondary,
             ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -398,12 +431,13 @@ class _StatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.appColors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppTheme.cardBorder)),
+      decoration: BoxDecoration(
+        color: palette.cardBackground,
+        border: Border(top: BorderSide(color: palette.cardBorder)),
       ),
       child: Row(
         children: [
@@ -419,19 +453,16 @@ class _StatusBar extends StatelessWidget {
           Expanded(
             child: Text(
               message.isEmpty ? 'Siap.' : message,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary,
-              ),
+              style: TextStyle(fontSize: 12, color: palette.textSecondary),
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Text(
+          Text(
             'Sekom Cleaner',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppTheme.textMuted,
+              color: palette.textMuted,
             ),
           ),
         ],

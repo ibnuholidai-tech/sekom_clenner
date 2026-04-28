@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/system_service.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/modern/modern_card.dart';
 import '../../widgets/modern/modern_pill.dart';
@@ -65,6 +66,7 @@ class _ModernOptimizationScreenState
   }
 
   Widget _buildHeader() {
+    final palette = context.appColors;
     return ModernCard(
       child: Row(
         children: [
@@ -72,17 +74,20 @@ class _ModernOptimizationScreenState
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppTheme.pillPurple,
+              color: AppTheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.primary.withValues(alpha: 0.25),
+              ),
             ),
             alignment: Alignment.center,
             child: const Icon(
               Icons.auto_awesome,
-              color: AppTheme.pillPurpleText,
+              color: AppTheme.primary,
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -91,13 +96,16 @@ class _ModernOptimizationScreenState
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
+                    color: palette.textPrimary,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   'Tindakan cepat untuk mempercepat & merawat sistem',
-                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: palette.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -120,8 +128,6 @@ class _ModernOptimizationScreenState
         children: [
           const ModernSectionHeader(
             icon: Icons.speed,
-            iconColor: AppTheme.pillBlueText,
-            iconBackground: AppTheme.pillBlue,
             title: 'Performa',
             subtitle: 'Atur pengelolaan power, startup, dan ruang disk',
           ),
@@ -133,8 +139,6 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.power_settings_new,
                 label: 'Buka Power Options',
-                tint: AppTheme.pillBlue,
-                tintText: AppTheme.pillBlueText,
                 onTap: () => _run(
                   'Buka Power Options',
                   () => SystemService.openSettingsUri('ms-settings:powersleep'),
@@ -143,8 +147,6 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.app_registration,
                 label: 'Kelola Startup',
-                tint: AppTheme.pillPurple,
-                tintText: AppTheme.pillPurpleText,
                 onTap: () => _run(
                   'Buka Startup',
                   () => SystemService.openTaskManagerStartup(),
@@ -153,16 +155,12 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.cleaning_services,
                 label: 'Disk Cleanup',
-                tint: AppTheme.pillTeal,
-                tintText: AppTheme.pillTealText,
                 onTap: () =>
                     _run('Disk Cleanup', () => SystemService.openDiskCleanup()),
               ),
               ModernActionPill(
                 icon: Icons.tune,
                 label: 'System Properties',
-                tint: AppTheme.pillAmber,
-                tintText: AppTheme.pillAmberText,
                 onTap: () => _run(
                   'System Properties',
                   () => SystemService.openSystemProperties(),
@@ -171,8 +169,6 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.memory,
                 label: 'Performance Monitor',
-                tint: AppTheme.pillGreen,
-                tintText: AppTheme.pillGreenText,
                 onTap: () => _run(
                   'Performance Monitor',
                   () => SystemService.openPerformanceMonitor(),
@@ -181,8 +177,6 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.assignment,
                 label: 'Task Manager',
-                tint: AppTheme.pillPink,
-                tintText: AppTheme.pillPinkText,
                 onTap: () => _run(
                   'Task Manager',
                   () => SystemService.openTaskManagerStartup(),
@@ -202,8 +196,6 @@ class _ModernOptimizationScreenState
         children: [
           const ModernSectionHeader(
             icon: Icons.build_outlined,
-            iconColor: AppTheme.pillGreenText,
-            iconBackground: AppTheme.pillGreen,
             title: 'Maintenance',
             subtitle: 'Pemutakhiran komponen & layanan',
           ),
@@ -215,8 +207,6 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.security,
                 label: 'Update Defender',
-                tint: AppTheme.pillGreen,
-                tintText: AppTheme.pillGreenText,
                 onTap: () => _run(
                   'Update Defender',
                   () => SystemService.updateWindowsDefender(),
@@ -225,8 +215,6 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.system_update,
                 label: 'Cek Windows Update',
-                tint: AppTheme.pillBlue,
-                tintText: AppTheme.pillBlueText,
                 onTap: () => _run(
                   'Cek Update',
                   () => SystemService.runWindowsUpdate(),
@@ -235,16 +223,13 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.cable,
                 label: 'Update Drivers',
-                tint: AppTheme.pillTeal,
-                tintText: AppTheme.pillTealText,
                 onTap: () =>
                     _run('Update Drivers', () => SystemService.updateDrivers()),
               ),
               ModernActionPill(
                 icon: Icons.pause_circle_outline,
                 label: 'Pause Update',
-                tint: AppTheme.pillAmber,
-                tintText: AppTheme.pillAmberText,
+                tone: PillTone.warning,
                 onTap: () => _run(
                   'Pause Windows Update',
                   () => SystemService.pauseWindowsUpdateService(),
@@ -253,8 +238,6 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.play_circle_outline,
                 label: 'Resume Update',
-                tint: AppTheme.pillBlue,
-                tintText: AppTheme.pillBlueText,
                 onTap: () => _run(
                   'Resume Windows Update',
                   () => SystemService.resumeWindowsUpdateService(),
@@ -263,8 +246,7 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.block,
                 label: 'Disable Update',
-                tint: AppTheme.pillRed,
-                tintText: AppTheme.pillRedText,
+                tone: PillTone.danger,
                 onTap: () => _run(
                   'Disable Windows Update',
                   () => SystemService.disableWindowsUpdateService(),
@@ -284,8 +266,6 @@ class _ModernOptimizationScreenState
         children: [
           const ModernSectionHeader(
             icon: Icons.bolt,
-            iconColor: AppTheme.pillAmberText,
-            iconBackground: AppTheme.pillAmber,
             title: 'Pintasan Cepat',
             subtitle: 'Buka panel sistem yang sering dibutuhkan',
           ),
@@ -297,8 +277,6 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.settings_input_component,
                 label: 'Device Manager',
-                tint: AppTheme.pillBlue,
-                tintText: AppTheme.pillBlueText,
                 onTap: () => _run(
                   'Device Manager',
                   () => SystemService.openDeviceManager(),
@@ -307,8 +285,6 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.miscellaneous_services,
                 label: 'Services',
-                tint: AppTheme.pillPurple,
-                tintText: AppTheme.pillPurpleText,
                 onTap: () => _run(
                   'Services',
                   () => SystemService.openServicesConsole(),
@@ -317,16 +293,12 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.event,
                 label: 'Event Viewer',
-                tint: AppTheme.pillTeal,
-                tintText: AppTheme.pillTealText,
                 onTap: () =>
                     _run('Event Viewer', () => SystemService.openEventViewer()),
               ),
               ModernActionPill(
                 icon: Icons.dashboard_customize_outlined,
                 label: 'Computer Mgmt.',
-                tint: AppTheme.pillGreen,
-                tintText: AppTheme.pillGreenText,
                 onTap: () => _run(
                   'Computer Management',
                   () => SystemService.openComputerManagement(),
@@ -335,8 +307,6 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.network_wifi,
                 label: 'Network',
-                tint: AppTheme.pillPink,
-                tintText: AppTheme.pillPinkText,
                 onTap: () => _run(
                   'Network Connections',
                   () => SystemService.openNetworkConnections(),
@@ -345,8 +315,6 @@ class _ModernOptimizationScreenState
               ModernActionPill(
                 icon: Icons.local_fire_department_outlined,
                 label: 'Firewall',
-                tint: AppTheme.pillRed,
-                tintText: AppTheme.pillRedText,
                 onTap: () =>
                     _run('Firewall', () => SystemService.openFirewall()),
               ),

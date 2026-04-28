@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 
 /// A flat, soft-shadow card used everywhere in the modern UI.
@@ -27,6 +28,7 @@ class ModernCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = radius ?? AppTheme.cardRadius;
+    final palette = context.appColors;
     final inner = Padding(
       padding: padding ?? const EdgeInsets.all(14),
       child: child,
@@ -35,9 +37,9 @@ class ModernCard extends StatelessWidget {
     Widget body = Container(
       margin: margin,
       decoration: BoxDecoration(
-        color: color ?? AppTheme.cardBackground,
+        color: color ?? palette.cardBackground,
         borderRadius: BorderRadius.circular(r),
-        border: Border.all(color: borderColor ?? AppTheme.cardBorder),
+        border: Border.all(color: borderColor ?? palette.cardBorder),
         boxShadow: shadow ?? AppTheme.cardShadow,
       ),
       child: inner,
@@ -81,6 +83,7 @@ class ModernSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = iconColor ?? AppTheme.primary;
     final bg = iconBackground ?? color.withValues(alpha: 0.12);
+    final palette = context.appColors;
     return Row(
       children: [
         Container(
@@ -101,20 +104,17 @@ class ModernSectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary,
+                  color: palette.textPrimary,
                 ),
               ),
               if (subtitle != null) ...[
                 const SizedBox(height: 2),
                 Text(
                   subtitle!,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textSecondary,
-                  ),
+                  style: TextStyle(fontSize: 11, color: palette.textSecondary),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
