@@ -92,50 +92,57 @@ class ModernSelectablePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.appColors;
-    final tone = PillTone.primary;
-    final style = _resolveTone(context, tone);
 
-    final bg = disabled
-        ? palette.surfaceMuted
-        : (selected
-            ? style.background
-            : AppTheme.primary.withValues(alpha: 0.06));
-    final fg = disabled ? palette.textMuted : style.foreground;
-    final borderColor = disabled
-        ? palette.surfaceMutedBorder
-        : (selected
-            ? style.border
-            : AppTheme.primary.withValues(alpha: 0.18));
-    final iconBubbleBg = AppTheme.primary.withValues(alpha: 0.20);
+    final Color bg;
+    final Color fg;
+    final Color borderColor;
+    final Color iconBubbleBg;
+    final Color iconColor;
+
+    if (disabled) {
+      bg = palette.surfaceMuted;
+      fg = palette.textMuted;
+      borderColor = palette.surfaceMutedBorder;
+      iconBubbleBg = palette.surfaceMuted;
+      iconColor = palette.textMuted;
+    } else if (selected) {
+      bg = AppTheme.primary.withValues(alpha: 0.10);
+      fg = AppTheme.primaryDark;
+      borderColor = AppTheme.primary.withValues(alpha: 0.32);
+      iconBubbleBg = AppTheme.primary;
+      iconColor = Colors.white;
+    } else {
+      bg = palette.cardBackground;
+      fg = palette.textPrimary;
+      borderColor = palette.cardBorder;
+      iconBubbleBg = palette.surfaceMuted;
+      iconColor = palette.textSecondary;
+    }
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: disabled ? null : onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(999),
             border: Border.all(color: borderColor, width: 1),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   color: iconBubbleBg,
-                  borderRadius: BorderRadius.circular(8),
+                  shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: Icon(
-                  icon,
-                  size: 16,
-                  color: AppTheme.primaryDark,
-                ),
+                child: Icon(icon, size: 14, color: iconColor),
               ),
               const SizedBox(width: 10),
               Flexible(
@@ -155,7 +162,7 @@ class ModernSelectablePill extends StatelessWidget {
                   trailingText!,
                   style: TextStyle(
                     fontSize: 11,
-                    color: fg.withValues(alpha: 0.75),
+                    color: palette.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -228,11 +235,23 @@ class ModernActionPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.appColors;
     final disabled = onTap == null;
-    final effectiveTone = tone == PillTone.neutral ? PillTone.primary : tone;
-    final style = _resolveTone(context, effectiveTone);
-    final bg = disabled ? palette.surfaceMuted : style.background;
-    final fg = disabled ? palette.textMuted : style.foreground;
-    final borderColor = disabled ? palette.surfaceMutedBorder : style.border;
+    final style = _resolveTone(context, tone);
+    final Color bg;
+    final Color fg;
+    final Color borderColor;
+    if (disabled) {
+      bg = palette.surfaceMuted;
+      fg = palette.textMuted;
+      borderColor = palette.surfaceMutedBorder;
+    } else if (tone == PillTone.neutral) {
+      bg = palette.cardBackground;
+      fg = palette.textPrimary;
+      borderColor = palette.cardBorder;
+    } else {
+      bg = style.background;
+      fg = style.foreground;
+      borderColor = style.border;
+    }
 
     return Material(
       color: Colors.transparent,

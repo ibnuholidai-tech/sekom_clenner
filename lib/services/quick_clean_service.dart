@@ -32,14 +32,30 @@ class QuickCleanService {
     }
 
     try {
+      // Measure detected size BEFORE starting any cleaning tasks so the
+      // folder sizes aren't already partially depleted by concurrent
+      // cleaners (matches the UI's pre-cached _folderInfos approach).
+      try {
+        final folders = await SystemService.getFolderSizesUltraFast(
+          timeout: const Duration(seconds: 4),
+        );
+        for (final f in folders) {
+          if (selection.folders[f.name] ?? false) {
+            detectedSize += f.sizeBytes;
+          }
+        }
+      } catch (_) {}
+
       final tasks = <Future<dynamic>>[];
 
-      final anyBrowser =
-          selection.chrome ||
-          selection.edge ||
-          selection.firefox ||
-          selection.brave;
-      if (anyBrowser) {
+      // Brave is exposed in the UI but SystemService.cleanBrowsers does not
+      // yet support Brave. Only count "Browser" as an action — and only kick
+      // off the cleanBrowsers call — when at least one Chromium-family
+      // browser supported by the backend is selected. Otherwise Brave-only
+      // selections would record a no-op as if cleaning had succeeded.
+      final chromiumBrowsersSelected =
+          selection.chrome || selection.edge || selection.firefox;
+      if (chromiumBrowsersSelected) {
         actions.add('Browser');
         tasks.add(
           safe(
@@ -78,17 +94,6 @@ class QuickCleanService {
         actions.add('Recycle Bin');
         tasks.add(safe(() => SystemService.clearRecycleBin()));
       }
-
-      try {
-        final folders = await SystemService.getFolderSizesUltraFast(
-          timeout: const Duration(seconds: 4),
-        );
-        for (final f in folders) {
-          if (selection.folders[f.name] ?? false) {
-            detectedSize += f.sizeBytes;
-          }
-        }
-      } catch (_) {}
 
       await Future.wait(tasks);
     } finally {
