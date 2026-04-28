@@ -60,7 +60,6 @@ class _ModernSystemCleanerScreenState
   // Other options
   bool _clearRecentSelected = false;
   bool _clearRecycleBinSelected = false;
-  bool _fastStartupSelected = false;
 
   // Status flags
   bool _isChecking = false;
@@ -1216,10 +1215,12 @@ class _ModernSystemCleanerScreenState
                       ),
                       Text(
                         cond,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.warning,
+                          color: _batteryHealthColor(
+                            _batteryStatus.batteryHealth,
+                          ),
                         ),
                       ),
                     ],
@@ -1236,6 +1237,17 @@ class _ModernSystemCleanerScreenState
         ],
       ),
     );
+  }
+
+  // Map a battery health percentage (0-100, where 100 = full design capacity)
+  // to a semantic colour. >=80 is healthy, 40-79 is degraded but usable, <40
+  // is critical. We treat unknown / 0 as unknown (neutral) so we don't flash
+  // a "critical" red on platforms that can't probe the battery.
+  Color _batteryHealthColor(double health) {
+    if (health <= 0) return context.appColors.textSecondary;
+    if (health >= 80) return AppTheme.success;
+    if (health >= 40) return AppTheme.warning;
+    return AppTheme.danger;
   }
 
   Widget _buildSecurityCard() {
@@ -1450,30 +1462,13 @@ class _ModernSystemCleanerScreenState
           ],
         ),
         const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: ModernSelectablePill(
-                icon: Icons.delete_outline,
-                label: 'Kosongkan Bin',
-                selected: _clearRecycleBinSelected,
-                onTap: () => setState(
-                  () => _clearRecycleBinSelected = !_clearRecycleBinSelected,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ModernSelectablePill(
-                icon: Icons.flash_on_outlined,
-                label: 'Fast Startup',
-                selected: _fastStartupSelected,
-                onTap: () => setState(
-                  () => _fastStartupSelected = !_fastStartupSelected,
-                ),
-              ),
-            ),
-          ],
+        ModernSelectablePill(
+          icon: Icons.delete_outline,
+          label: 'Kosongkan Bin',
+          selected: _clearRecycleBinSelected,
+          onTap: () => setState(
+            () => _clearRecycleBinSelected = !_clearRecycleBinSelected,
+          ),
         ),
       ],
     );
