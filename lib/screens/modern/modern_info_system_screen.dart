@@ -118,7 +118,11 @@ class _ModernInfoSystemScreenState
               children: [
                 Text(
                   k,
+<<<<<<< HEAD
                   style: TextStyle(
+=======
+                  style: const TextStyle(
+>>>>>>> 63a06460d3694926321f0ffeb97907e1dec2f7f5
                     fontSize: 11,
                     color: AppTheme.textSecondary,
                   ),
@@ -126,7 +130,11 @@ class _ModernInfoSystemScreenState
                 const SizedBox(height: 2),
                 SelectableText(
                   v.isEmpty ? '—' : v,
+<<<<<<< HEAD
                   style: TextStyle(
+=======
+                  style: const TextStyle(
+>>>>>>> 63a06460d3694926321f0ffeb97907e1dec2f7f5
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
@@ -196,7 +204,11 @@ class _ModernInfoSystemScreenState
             ),
           ),
           const SizedBox(width: 12),
+<<<<<<< HEAD
           Expanded(
+=======
+          const Expanded(
+>>>>>>> 63a06460d3694926321f0ffeb97907e1dec2f7f5
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -208,7 +220,11 @@ class _ModernInfoSystemScreenState
                     color: AppTheme.textPrimary,
                   ),
                 ),
+<<<<<<< HEAD
                 const SizedBox(height: 2),
+=======
+                SizedBox(height: 2),
+>>>>>>> 63a06460d3694926321f0ffeb97907e1dec2f7f5
                 Text(
                   'Detail OS, hardware, dan jaringan',
                   style:
@@ -359,7 +375,11 @@ class _ModernInfoSystemScreenState
           ),
           const SizedBox(height: 12),
           if (_disks.isEmpty)
+<<<<<<< HEAD
             Text(
+=======
+            const Text(
+>>>>>>> 63a06460d3694926321f0ffeb97907e1dec2f7f5
               'Tidak ada info disk fisik.',
               style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
             )
@@ -429,7 +449,11 @@ class _ModernInfoSystemScreenState
           Text(
             'Tipe: ${type.isEmpty ? "-" : type} • $size',
             style:
+<<<<<<< HEAD
                 TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+=======
+                const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+>>>>>>> 63a06460d3694926321f0ffeb97907e1dec2f7f5
           ),
         ],
       ),
