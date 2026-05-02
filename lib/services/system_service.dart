@@ -232,8 +232,8 @@ try {
     try {
       if (_elevatedCache != null) return _elevatedCache!;
       final cmd =
-          r'''powershell -NoProfile -Command "[Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent() | % { $_.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }"''';
-      var res = await _shell.run(cmd);
+          r'''powershell -NoProfile -Command "([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"''';
+      final res = await _shell.run(cmd).timeout(const Duration(seconds: 5));
       final out = res.first.stdout.toString().trim().toLowerCase();
       final isAdmin = out.contains('true');
       _elevatedCache = isAdmin;

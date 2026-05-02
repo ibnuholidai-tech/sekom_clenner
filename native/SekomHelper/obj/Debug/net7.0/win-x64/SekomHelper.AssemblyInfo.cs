@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SekomHelper")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b25d48436e888619cca983830715258c6d270a56")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+84b4df038996b79726a49a1a2170b32e33ab6d51")]
 [assembly: System.Reflection.AssemblyProductAttribute("SekomHelper")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SekomHelper")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
