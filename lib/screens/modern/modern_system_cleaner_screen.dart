@@ -317,7 +317,7 @@ class _ModernSystemCleanerScreenState
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -329,7 +329,7 @@ class _ModernSystemCleanerScreenState
                     color: AppTheme.textPrimary,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   'Bersihkan, periksa, dan optimalkan PC Anda',
                   style: TextStyle(
@@ -565,8 +565,8 @@ class _ModernSystemCleanerScreenState
           ),
           const SizedBox(height: 12),
           if (_diskInfo.isEmpty && _ramInfo.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
                 'Memuat info perangkat keras...',
                 style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
@@ -641,7 +641,7 @@ class _ModernSystemCleanerScreenState
           const SizedBox(height: 6),
           Text(
             'Tipe: ${type.isEmpty ? "-" : type} • $size',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               color: AppTheme.textSecondary,
             ),
@@ -649,7 +649,7 @@ class _ModernSystemCleanerScreenState
           if (temp.isNotEmpty)
             Text(
               'Suhu: $temp',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 color: AppTheme.textSecondary,
               ),
@@ -702,7 +702,7 @@ class _ModernSystemCleanerScreenState
           ),
           Text(
             warn ? 'RAM rendah, pertimbangkan upgrade' : 'Kapasitas memadai',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               color: AppTheme.textSecondary,
             ),
@@ -757,7 +757,7 @@ class _ModernSystemCleanerScreenState
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,
@@ -765,7 +765,7 @@ class _ModernSystemCleanerScreenState
                   ),
                   Text(
                     status.status,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       color: AppTheme.textSecondary,
                     ),

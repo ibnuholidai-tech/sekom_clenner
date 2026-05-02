@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/theme_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/window_title_bar.dart';
 import 'modern/modern_system_cleaner_screen.dart';
 import 'modern/modern_battery_screen.dart';
 import 'modern/modern_optimization_screen.dart';
@@ -96,29 +98,90 @@ class _ModernMainScreenState extends ConsumerState<ModernMainScreen> {
   @override
   Widget build(BuildContext context) {
     final statusMessage = ref.watch(statusMessageProvider);
+    final themeMode = ref.watch(themeModeProvider);
     return Scaffold(
       backgroundColor: AppTheme.pageBackground,
-      body: SafeArea(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _Sidebar(
-              items: _items,
-              selectedIndex: _selectedIndex,
-              expanded: _railExpanded,
-              onSelected: (i) => setState(() => _selectedIndex = i),
-              onToggle: () =>
-                  setState(() => _railExpanded = !_railExpanded),
+      body: Column(
+        children: [
+          WindowTitleBar(
+            trailing: _ThemeToggleButton(
+              mode: themeMode,
+              onPressed: () =>
+                  ref.read(themeModeProvider.notifier).cycle(),
             ),
-            Expanded(
-              child: Column(
-                children: [
-                  Expanded(child: _buildBody()),
-                  _StatusBar(message: statusMessage),
-                ],
-              ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _Sidebar(
+                  items: _items,
+                  selectedIndex: _selectedIndex,
+                  expanded: _railExpanded,
+                  onSelected: (i) => setState(() => _selectedIndex = i),
+                  onToggle: () =>
+                      setState(() => _railExpanded = !_railExpanded),
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Expanded(child: _buildBody()),
+                      _StatusBar(message: statusMessage),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeToggleButton extends StatelessWidget {
+  final ThemeMode mode;
+  final VoidCallback onPressed;
+  const _ThemeToggleButton({required this.mode, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, label) = switch (mode) {
+      ThemeMode.light => (Icons.light_mode_rounded, 'Light'),
+      ThemeMode.dark => (Icons.dark_mode_rounded, 'Dark'),
+      ThemeMode.system => (Icons.brightness_auto_rounded, 'System'),
+    };
+    return Tooltip(
+      message: 'Tema: $label (klik untuk ganti)',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onPressed,
+          child: Container(
+            height: 28,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: AppTheme.cardBackground,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.cardBorder),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 14, color: AppTheme.textSecondary),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -161,7 +224,7 @@ class _Sidebar extends StatelessWidget {
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       width: width,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.sidebar,
         border: Border(
           right: BorderSide(color: AppTheme.cardBorder, width: 1),
@@ -227,7 +290,7 @@ class _SidebarHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Text(
                     'Settings',
                     style: TextStyle(
@@ -236,7 +299,7 @@ class _SidebarHeader extends StatelessWidget {
                       color: AppTheme.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
                     'Pintasan & tools',
                     style: TextStyle(
@@ -340,7 +403,7 @@ class _SidebarFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 8, 8, 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppTheme.cardBorder)),
       ),
       child: Row(
@@ -364,7 +427,7 @@ class _SidebarFooter extends StatelessWidget {
           ),
           if (expanded) ...[
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
                 'by Ibnu',
                 style: TextStyle(
@@ -401,8 +464,8 @@ class _StatusBar extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
         border: Border(top: BorderSide(color: AppTheme.cardBorder)),
       ),
       child: Row(
@@ -419,14 +482,14 @@ class _StatusBar extends StatelessWidget {
           Expanded(
             child: Text(
               message.isEmpty ? 'Siap.' : message,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 color: AppTheme.textSecondary,
               ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Text(
+          Text(
             'Sekom Cleaner',
             style: TextStyle(
               fontSize: 11,

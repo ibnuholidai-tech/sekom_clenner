@@ -50,6 +50,8 @@ dependencies:
   launch_at_startup: ^0.2.2
   encrypt: ^5.0.3
   flutter_secure_storage: ^9.0.0
+  flutter_acrylic: ^1.1.4
+  bitsdojo_window: ^0.1.6
 
   # Hardware & diagnostics
   camera: ^0.10.5+9

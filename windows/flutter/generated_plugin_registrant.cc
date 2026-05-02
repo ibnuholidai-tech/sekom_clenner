@@ -8,8 +8,10 @@
 
 #include <audioplayers_windows/audioplayers_windows_plugin.h>
 #include <battery_plus/battery_plus_windows_plugin.h>
+#include <bitsdojo_window_windows/bitsdojo_window_plugin.h>
 #include <camera_windows/camera_windows.h>
 #include <connectivity_plus/connectivity_plus_windows_plugin.h>
+#include <flutter_acrylic/flutter_acrylic_plugin.h>
 #include <flutter_secure_storage_windows/flutter_secure_storage_windows_plugin.h>
 #include <permission_handler_windows/permission_handler_windows_plugin.h>
 #include <record_windows/record_windows_plugin_c_api.h>
@@ -23,10 +25,14 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("AudioplayersWindowsPlugin"));
   BatteryPlusWindowsPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("BatteryPlusWindowsPlugin"));
+  BitsdojoWindowPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("BitsdojoWindowPlugin"));
   CameraWindowsRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("CameraWindows"));
   ConnectivityPlusWindowsPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("ConnectivityPlusWindowsPlugin"));
+  FlutterAcrylicPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("FlutterAcrylicPlugin"));
   FlutterSecureStorageWindowsPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FlutterSecureStorageWindowsPlugin"));
   PermissionHandlerWindowsPluginRegisterWithRegistrar(

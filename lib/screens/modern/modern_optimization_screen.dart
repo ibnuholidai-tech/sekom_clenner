@@ -82,7 +82,7 @@ class _ModernOptimizationScreenState
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -94,7 +94,7 @@ class _ModernOptimizationScreenState
                     color: AppTheme.textPrimary,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   'Tindakan cepat untuk mempercepat & merawat sistem',
                   style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
