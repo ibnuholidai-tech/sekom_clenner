@@ -96,7 +96,7 @@ class _ModernResetScreenState extends ConsumerState<ModernResetScreen> {
             child: const Icon(Icons.refresh, color: AppTheme.pillRedText),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -108,7 +108,7 @@ class _ModernResetScreenState extends ConsumerState<ModernResetScreen> {
                     color: AppTheme.textPrimary,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   'Kembalikan komponen ke kondisi default',
                   style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
