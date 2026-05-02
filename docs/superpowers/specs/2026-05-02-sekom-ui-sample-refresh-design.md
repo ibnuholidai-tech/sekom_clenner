@@ -7,8 +7,9 @@ Refresh the whole modern Sekom Cleaner interface so it follows the provided samp
 ## Scope
 
 - Replace the current left sidebar shell in `ModernMainScreen` with a top navigation shell.
-- Keep all seven current modern pages available:
+- Keep all eight current/sample pages available:
   - System Cleaner
+  - Application Manager
   - Shortcut
   - Battery Health
   - Optimization
@@ -69,7 +70,7 @@ Pages continue using existing widgets and service calls. Screens currently wrapp
 
 ## Responsive Behavior
 
-At desktop width, all seven navigation items try to fit evenly across the header. If the app window becomes narrow, the navigation becomes horizontally scrollable instead of wrapping awkwardly or shrinking text too far.
+At desktop width, all eight navigation items try to fit evenly across the header. If the app window becomes narrow, the navigation becomes horizontally scrollable instead of wrapping awkwardly or shrinking text too far.
 
 ## Error Handling
 
@@ -80,7 +81,6 @@ No new service calls are introduced, so existing error handling remains unchange
 Run Flutter static analysis after changes. If possible, launch the Windows app or run existing widget tests to catch layout/build errors. Visual verification should check:
 
 - Header and navigation resemble the sample.
-- All seven pages are reachable.
+- All eight pages are reachable.
 - Text does not overflow in the top navigation.
 - Existing buttons and cards remain usable.
-
